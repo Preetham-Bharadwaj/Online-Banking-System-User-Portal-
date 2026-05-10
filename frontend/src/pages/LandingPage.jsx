@@ -216,7 +216,7 @@ const LandingPage = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8">
             {[
               { icon: Zap, title: "Instant Fund Transfers", desc: "Send money to any bank account or UPI ID instantly, 24/7.", highlight: "Real-time" },
               { icon: PieChart, title: "Budget Planner", desc: "Automate your savings and track spending effortlessly.", highlight: "AI-Powered" },
@@ -227,15 +227,15 @@ const LandingPage = () => {
               { icon: Shield, title: "Fraud Detection", desc: "Advanced AI that monitors for suspicious activity in real-time.", highlight: "Bank-Grade" },
               { icon: Bell, title: "Smart Alerts", desc: "Personalized notifications for every transaction and insight.", highlight: "Real-time" },
             ].map((feature, i) => (
-              <div key={i} className="p-8 rounded-3xl border border-slate-100 hover:border-primary-100 hover:bg-primary-50/30 transition-all duration-300 group">
-                <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-primary-600 group-hover:bg-primary-600 group-hover:text-white transition-all duration-300 mb-6">
-                  <feature.icon size={28} />
+              <div key={i} className="p-5 md:p-8 rounded-2xl md:rounded-3xl border border-slate-100 hover:border-primary-100 hover:bg-primary-50/30 transition-all duration-300 group">
+                <div className="w-10 h-10 md:w-14 md:h-14 bg-slate-50 rounded-xl md:rounded-2xl flex items-center justify-center text-primary-600 group-hover:bg-primary-600 group-hover:text-white transition-all duration-300 mb-4 md:mb-6">
+                  <feature.icon className="w-5 h-5 md:w-7 md:h-7" />
                 </div>
-                <div className="inline-block px-2 py-0.5 bg-primary-100 text-primary-700 text-[10px] font-bold rounded uppercase mb-3">
+                <div className="inline-block px-2 py-0.5 bg-primary-100 text-primary-700 text-[9px] md:text-[10px] font-bold rounded uppercase mb-2 md:mb-3">
                   {feature.highlight}
                 </div>
-                <h4 className="text-xl font-bold text-slate-900 mb-3">{feature.title}</h4>
-                <p className="text-slate-600 text-sm leading-relaxed">{feature.desc}</p>
+                <h4 className="text-base md:text-xl font-bold text-slate-900 mb-2 md:mb-3 leading-tight">{feature.title}</h4>
+                <p className="text-slate-600 text-[11px] md:text-sm leading-relaxed">{feature.desc}</p>
               </div>
             ))}
           </div>
