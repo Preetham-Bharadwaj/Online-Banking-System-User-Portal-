@@ -50,7 +50,6 @@ const LandingPage = () => {
             <a href="#features" className="text-sm font-medium text-slate-600 hover:text-primary-600 transition-colors">Features</a>
             <a href="#security" className="text-sm font-medium text-slate-600 hover:text-primary-600 transition-colors">Security</a>
             <a href="#analytics" className="text-sm font-medium text-slate-600 hover:text-primary-600 transition-colors">Analytics</a>
-            <a href="#pricing" className="text-sm font-medium text-slate-600 hover:text-primary-600 transition-colors">Pricing</a>
             <a href="#about" className="text-sm font-medium text-slate-600 hover:text-primary-600 transition-colors">About</a>
           </div>
 
@@ -383,13 +382,13 @@ const LandingPage = () => {
             <h2 className="text-4xl font-extrabold text-slate-900">Loved by thousands.</h2>
             <p className="text-slate-600">Join the movement towards better banking.</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="flex md:grid overflow-x-auto md:overflow-visible no-scrollbar snap-x snap-mandatory md:snap-none md:grid-cols-3 gap-6 md:gap-8 pb-8 md:pb-0">
             {[
               { name: "Rahul Sharma", role: "Student, IIT Bombay", quote: "As a student, tracking expenses was a nightmare. Vertex changed that with its smart categorisation and zero hidden charges.", avatar: "RS" },
               { name: "Priya Varma", role: "Software Engineer", quote: "The interface is beautiful and the instant UPI transfers are actually instant. It's the only banking app I enjoy using.", avatar: "PV" },
               { name: "Amit Goel", role: "Small Business Owner", quote: "Managing my business expenses and personal savings in one place with such deep analytics has been a game changer for me.", avatar: "AG" }
             ].map((item, i) => (
-              <div key={i} className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 hover:shadow-md transition-all">
+              <div key={i} className="flex-none w-[85vw] md:w-auto snap-center bg-white p-8 rounded-3xl shadow-sm border border-slate-100 hover:shadow-md transition-all">
                 <div className="flex text-amber-400 gap-1 mb-4">
                    {[...Array(5)].map((_, j) => <CheckCircle2 size={16} key={j} className="fill-current" />)}
                 </div>
@@ -423,53 +422,15 @@ const LandingPage = () => {
               { q: "Are there any hidden charges?", a: "None at all. We believe in transparent banking. All our charges are clearly mentioned in our schedule of charges available on the app." },
               { q: "Can I use UPI for all transfers?", a: "Yes, Vertex Bank supports UPI, IMPS, NEFT, and RTGS, giving you the flexibility to transfer money however you like." }
             ].map((faq, i) => (
-              <div key={i} className="group border border-slate-100 rounded-2xl p-6 hover:bg-slate-50 transition-all cursor-pointer">
-                 <div className="flex items-center justify-between">
+              <details key={i} className="group border border-slate-100 rounded-2xl bg-white hover:bg-slate-50 transition-all cursor-pointer overflow-hidden">
+                 <summary className="flex items-center justify-between p-6 list-none [&::-webkit-details-marker]:hidden">
                     <h4 className="font-bold text-slate-900">{faq.q}</h4>
-                    <ChevronDown size={20} className="text-slate-400 group-hover:text-primary-600 transition-all" />
-                 </div>
-                 <p className="mt-4 text-slate-600 text-sm leading-relaxed hidden group-hover:block animate-fadeIn">
+                    <ChevronDown size={20} className="text-slate-400 group-open:rotate-180 transition-transform duration-300" />
+                 </summary>
+                 <div className="px-6 pb-6 text-slate-600 text-sm leading-relaxed animate-fadeIn">
                     {faq.a}
-                 </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* New Pricing Section */}
-      <section id="pricing" className="py-32 bg-slate-50 px-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-20 space-y-4">
-            <h2 className="text-primary-600 font-bold uppercase tracking-widest text-sm">Pricing Plans</h2>
-            <h3 className="text-4xl font-extrabold text-slate-900">Choose the perfect plan for your goals.</h3>
-            <p className="text-slate-600">No hidden fees. Transparent banking for everyone.</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { name: "Lite", price: "0", features: ["Basic Savings Account", "Virtual Debit Card", "UPI Payments", "Email Support"], recommended: false },
-              { name: "Premium", price: "199", features: ["High-Interest Savings", "Physical Platinum Card", "Unlimited Transfers", "Priority 24/7 Support", "Smart Analytics"], recommended: true },
-              { name: "Business", price: "499", features: ["Multiple Business Accounts", "Bulk Payouts", "GST Invoicing Tools", "Dedicated Account Manager", "API Access"], recommended: false },
-            ].map((plan, i) => (
-              <div key={i} className={`p-10 rounded-[2.5rem] bg-white border transition-all ${plan.recommended ? 'border-primary-500 shadow-2xl shadow-primary-200 scale-105 z-10' : 'border-slate-100 shadow-sm hover:shadow-xl'}`}>
-                {plan.recommended && <div className="bg-primary-500 text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full w-fit mb-6">Most Popular</div>}
-                <h4 className="text-2xl font-bold text-slate-900 mb-2">{plan.name}</h4>
-                <div className="flex items-baseline gap-1 mb-8">
-                  <span className="text-4xl font-black text-slate-900">₹{plan.price}</span>
-                  <span className="text-slate-500 font-medium">/ month</span>
-                </div>
-                <ul className="space-y-4 mb-10">
-                  {plan.features.map((f, j) => (
-                    <li key={j} className="flex items-center gap-3 text-slate-600 text-sm">
-                      <CheckCircle2 size={18} className="text-emerald-500 flex-shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <Link to="/register" className={`w-full py-4 rounded-xl font-bold transition-all text-center block ${plan.recommended ? 'bg-primary-600 text-white shadow-lg shadow-primary-200' : 'bg-slate-50 text-slate-900 hover:bg-slate-100'}`}>
-                  {plan.price === "0" ? "Get Started for Free" : "Upgrade Now"}
-                </Link>
-              </div>
+                 </div>
+              </details>
             ))}
           </div>
         </div>
