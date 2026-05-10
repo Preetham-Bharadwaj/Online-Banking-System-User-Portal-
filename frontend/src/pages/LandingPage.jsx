@@ -461,20 +461,20 @@ const LandingPage = () => {
               </p>
               <div className="grid grid-cols-2 gap-8">
                 <div>
-                   <p className="text-3xl font-black text-slate-900">2024</p>
-                   <p className="text-sm text-slate-500 font-medium uppercase tracking-wider">Founded</p>
+                   <p className="text-3xl font-black text-slate-900">100%</p>
+                   <p className="text-sm text-slate-500 font-medium uppercase tracking-wider">Free Forever</p>
                 </div>
                 <div>
-                   <p className="text-3xl font-black text-slate-900">50+</p>
-                   <p className="text-sm text-slate-500 font-medium uppercase tracking-wider">Engineers</p>
+                   <p className="text-3xl font-black text-slate-900">₹0</p>
+                   <p className="text-sm text-slate-500 font-medium uppercase tracking-wider">Min Balance</p>
                 </div>
                 <div>
                    <p className="text-3xl font-black text-slate-900">Bengaluru</p>
-                   <p className="text-sm text-slate-500 font-medium uppercase tracking-wider">Headquarters</p>
+                   <p className="text-sm text-slate-500 font-medium uppercase tracking-wider">Made In</p>
                 </div>
                 <div>
-                   <p className="text-3xl font-black text-slate-900">100%</p>
-                   <p className="text-sm text-slate-500 font-medium uppercase tracking-wider">Commitment</p>
+                   <p className="text-3xl font-black text-slate-900">24/7</p>
+                   <p className="text-sm text-slate-500 font-medium uppercase tracking-wider">Security</p>
                 </div>
               </div>
             </div>
