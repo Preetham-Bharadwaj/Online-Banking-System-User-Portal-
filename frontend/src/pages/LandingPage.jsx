@@ -354,15 +354,15 @@ const LandingPage = () => {
           <div className="text-center mb-20">
              <h2 className="text-4xl font-extrabold text-slate-900">Start your journey in minutes.</h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
+          <div className="flex md:grid overflow-x-auto md:overflow-visible no-scrollbar snap-x snap-mandatory md:snap-none md:grid-cols-4 gap-6 md:gap-12 pb-8 md:pb-0">
             {[
               { step: "01", title: "Create Account", desc: "Download the app or sign up on web with your mobile number." },
               { step: "02", title: "Complete KYC", desc: "Quick paperless verification using your Aadhar and PAN card." },
               { step: "03", title: "Add Funds", desc: "Transfer money from any existing bank account instantly." },
               { step: "04", title: "Start Banking", desc: "Enjoy instant transfers, payments, and smart insights." }
             ].map((item, i) => (
-              <div key={i} className="relative">
-                <p className="text-6xl font-black text-slate-50 mb-4">{item.step}</p>
+              <div key={i} className="relative flex-none w-[75vw] md:w-auto snap-center">
+                <p className="text-6xl md:text-7xl font-black text-slate-200 mb-4">{item.step}</p>
                 <div className="relative -mt-10 pl-4">
                   <h4 className="text-xl font-bold text-slate-900 mb-2">{item.title}</h4>
                   <p className="text-slate-600 text-sm leading-relaxed">{item.desc}</p>
