@@ -90,7 +90,7 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-16">
           <div className="flex-1 text-center lg:text-left space-y-8">
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary-50 text-primary-700 rounded-full text-xs font-bold uppercase tracking-wider mb-4 border border-primary-100">
-              <ShieldCheck size={14} /> Trusted by 1M+ Users in India
+              <Zap size={14} /> Coming Soon: The Future of Banking
             </div>
             <h1 className="text-5xl lg:text-7xl font-extrabold text-slate-900 leading-[1.1] tracking-tight">
               Smart Banking for <br/>
@@ -99,7 +99,7 @@ const LandingPage = () => {
               </span>
             </h1>
             <p className="text-xl text-slate-600 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-              Experience the next generation of banking. Instant transfers, AI-powered insights, and bank-grade security—all in one premium platform designed for your lifestyle.
+              Experience the next generation of banking. Instant transfers, AI-powered insights, and bank-grade security—all in one 100% free platform designed for your lifestyle.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4">
               <Link to="/register" className="w-full sm:w-auto px-8 py-4 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-2xl shadow-xl shadow-primary-200 transition-all hover:scale-105 flex items-center justify-center gap-2">
@@ -189,8 +189,8 @@ const LandingPage = () => {
               <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Uptime Guarantee</p>
             </div>
             <div className="text-center space-y-2">
-              <p className="text-4xl font-extrabold text-primary-600">₹500Cr+</p>
-              <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Monthly Transactions</p>
+              <p className="text-4xl font-extrabold text-primary-600">₹0</p>
+              <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Hidden Charges</p>
             </div>
             <div className="text-center space-y-2">
               <p className="text-4xl font-extrabold text-primary-600">AES-256</p>
@@ -379,8 +379,8 @@ const LandingPage = () => {
       <section className="py-32 px-4 bg-slate-50">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-20 space-y-4">
-            <h2 className="text-4xl font-extrabold text-slate-900">Loved by thousands.</h2>
-            <p className="text-slate-600">Join the movement towards better banking.</p>
+            <h2 className="text-4xl font-extrabold text-slate-900">What early testers say.</h2>
+            <p className="text-slate-600">Join the waitlist to be part of the future of banking.</p>
           </div>
           <div className="flex md:grid overflow-x-auto md:overflow-visible no-scrollbar snap-x snap-mandatory md:snap-none md:grid-cols-3 gap-6 md:gap-8 pb-8 md:pb-0">
             {[
@@ -455,7 +455,7 @@ const LandingPage = () => {
             </div>
             <div className="flex-1 space-y-8">
               <h2 className="text-primary-600 font-bold uppercase tracking-widest text-sm">About Vertex</h2>
-              <h3 className="text-4xl lg:text-5xl font-extrabold text-slate-900 leading-tight">We're on a mission to democratize premium banking.</h3>
+              <h3 className="text-4xl lg:text-5xl font-extrabold text-slate-900 leading-tight">We're on a mission to democratize modern banking for free.</h3>
               <p className="text-lg text-slate-600 leading-relaxed">
                 At Vertex, we believe that everyone deserves access to world-class financial tools. We're building a banking experience that isn't just about storing money, but about helping you understand and grow it.
               </p>
@@ -491,7 +491,7 @@ const LandingPage = () => {
                  Ready to upgrade <br/> your banking?
               </h2>
               <p className="text-xl text-primary-100 max-w-2xl mx-auto">
-                 Join millions of smart users who have already switched to Vertex. Open your account in less than 5 minutes.
+                 Be among the first smart users to experience Vertex. Open your free account in less than 5 minutes.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link to="/register" className="w-full sm:w-auto px-10 py-5 bg-white text-primary-700 font-black rounded-2xl shadow-2xl transition-all hover:scale-105">
