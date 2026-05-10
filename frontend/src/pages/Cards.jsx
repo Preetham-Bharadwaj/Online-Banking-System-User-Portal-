@@ -28,10 +28,12 @@ import {
   Info,
   Clock
 } from 'lucide-react';
+import CardModals from '../components/CardModals';
 
 const Cards = () => {
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const [isRevealed, setIsRevealed] = useState(false);
+  const [modalState, setModalState] = useState({ isOpen: false, type: '', card: null });
 
   const cards = [
     {
@@ -70,11 +72,11 @@ const Cards = () => {
   ];
 
   const cardActions = [
-    { icon: Key, label: 'Change PIN' },
-    { icon: Lock, label: 'Freeze Card' },
-    { icon: RotateCcw, label: 'Replace Card' },
-    { icon: Plane, label: 'Travel Mode' },
-    { icon: Sliders, label: 'Manage Limits' },
+    { icon: Key, label: 'Change PIN', type: 'Change PIN' },
+    { icon: Lock, label: 'Freeze Card', type: 'Freeze Card' },
+    { icon: RotateCcw, label: 'Replace Card', type: 'Replace Card' },
+    { icon: Plane, label: 'Travel Mode', type: 'Travel Mode' },
+    { icon: Sliders, label: 'Manage Limits', type: 'Manage Limits' },
   ];
 
   const [settings, setSettings] = useState({
@@ -310,7 +312,12 @@ const Cards = () => {
                        </div>
                     </div>
 
-                    <button className="w-full py-5 bg-white text-slate-900 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] transition-transform">Pay Bill Now</button>
+                    <button 
+                      onClick={() => setModalState({ isOpen: true, type: 'Pay Bill', card: currentCard })}
+                      className="w-full py-5 bg-white text-slate-900 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] transition-transform"
+                    >
+                      Pay Bill Now
+                    </button>
                  </div>
 
                  <div className="pt-8 border-t border-white/10 space-y-6 relative z-10">
@@ -340,7 +347,11 @@ const Cards = () => {
                  <h3 className="font-black text-slate-400 uppercase tracking-widest text-[10px] px-2">Management Center</h3>
                  <div className="space-y-1">
                     {cardActions.map((action, i) => (
-                      <button key={i} className="w-full flex items-center justify-between p-4.5 hover:bg-slate-50 rounded-2xl transition-all group">
+                      <button 
+                        key={i} 
+                        onClick={() => setModalState({ isOpen: true, type: action.type, card: currentCard })}
+                        className="w-full flex items-center justify-between p-4.5 hover:bg-slate-50 rounded-2xl transition-all group"
+                      >
                          <div className="flex items-center gap-4 text-slate-600 group-hover:text-primary-600 transition-colors">
                             <action.icon size={18} strokeWidth={2.5} />
                             <span className="text-[11px] font-black uppercase tracking-widest">{action.label}</span>
@@ -368,6 +379,13 @@ const Cards = () => {
            </div>
         </div>
       </div>
+
+      <CardModals 
+        isOpen={modalState.isOpen} 
+        onClose={() => setModalState({ ...modalState, isOpen: false })} 
+        type={modalState.type} 
+        card={modalState.card} 
+      />
     </div>
   );
 };

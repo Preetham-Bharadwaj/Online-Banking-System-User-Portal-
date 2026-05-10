@@ -13,11 +13,15 @@ import {
   Volume2,
   Eye,
   Info,
-  X
+  X,
+  CreditCard,
+  ShieldCheck
 } from 'lucide-react';
+import SettingsModals from '../components/SettingsModals';
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('General');
+  const [modalState, setModalState] = useState({ isOpen: false, type: '' });
 
   const settingsSections = [
     {
@@ -26,6 +30,13 @@ const Settings = () => {
         { id: 'Notifications', icon: Bell, label: "Notifications", desc: "Alerts, sounds and push preferences" },
         { id: 'Appearance', icon: Palette, label: "Appearance", desc: "Dark mode, themes and font size" },
         { id: 'Language', icon: Globe, label: "Language", desc: "System display language: English (US)" },
+      ]
+    },
+    {
+      title: "Payment Security",
+      items: [
+        { id: 'UPI Security', icon: ShieldCheck, label: "UPI Settings", desc: "Change UPI PIN, manage limits & VPA" },
+        { id: 'Cards Security', icon: CreditCard, label: "Card Security", desc: "Manage contactless, online & ATM limits" },
       ]
     },
     {
@@ -65,6 +76,7 @@ const Settings = () => {
                       <motion.button 
                         key={j} 
                         whileHover={{ x: 4, backgroundColor: '#F8FAFC' }}
+                        onClick={() => setModalState({ isOpen: true, type: item.id })}
                         className="w-full flex items-center justify-between p-7 transition-all text-left group"
                       >
                          <div className="flex items-center gap-6">
@@ -111,8 +123,14 @@ const Settings = () => {
                </div>
                <p className="text-[13px] font-bold text-primary-900 leading-relaxed">Your preferences are synced across all devices linked to this account.</p>
             </div>
-         </div>
-      </div>
+          </div>
+       </div>
+
+      <SettingsModals 
+        isOpen={modalState.isOpen} 
+        onClose={() => setModalState({ ...modalState, isOpen: false })} 
+        type={modalState.type} 
+      />
     </div>
   );
 };

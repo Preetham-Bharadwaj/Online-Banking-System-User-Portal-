@@ -25,6 +25,8 @@ import {
 import ContactAvatar from '../components/ContactAvatar';
 import { useLocation } from 'react-router-dom';
 import { useQR } from '../context/QRContext';
+import PaymentFlows from '../components/PaymentFlows';
+import { X, RefreshCcw } from 'lucide-react';
 
 const Payments = () => {
   const { openScanner } = useQR();
@@ -34,6 +36,12 @@ const Payments = () => {
   const [note, setNote] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+
+  // New States for refactored functionality
+  const [activeFlow, setActiveFlow] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState(null);
 
   useEffect(() => {
     if (location.state?.flow === 'scan' && location.state?.receiver) {
@@ -54,6 +62,23 @@ const Payments = () => {
       }, 3000);
     }, 2000);
   };
+
+  useEffect(() => {
+    if (searchQuery.length > 2) {
+      setIsSearching(true);
+      const timer = setTimeout(() => {
+        const query = searchQuery.toLowerCase();
+        setSearchResults({
+          contacts: favorites.filter(f => f.name.toLowerCase().includes(query)),
+          services: secondaryActions.filter(s => s.label.toLowerCase().includes(query))
+        });
+        setIsSearching(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    } else {
+      setSearchResults(null);
+    }
+  }, [searchQuery]);
   const recentPayments = [
     { id: 1, name: 'Zomato Order', amount: -450, date: 'Today, 2:40 PM', type: 'UPI', avatar: 'ZO', status: 'Success' },
     { id: 2, name: 'Priya Verma', amount: -2500, date: 'Yesterday', type: 'Transfer', avatar: 'PV', status: 'Pending' },
@@ -121,15 +146,59 @@ const Payments = () => {
               </div>
            </div>
            
-           <div className="flex-1 max-w-2xl flex items-center gap-4">
-              <div className="flex-1 relative group">
-                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+           <div className="flex-1 max-w-2xl flex flex-col relative">
+              <div className="relative group">
+                 <Search className={`absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors ${isSearching ? 'text-primary-600 animate-pulse' : 'text-slate-400'}`} size={14} />
                  <input 
                   type="text" 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Enter name, phone, or UPI ID..." 
                   className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl lg:rounded-lg focus:border-primary-500/30 focus:ring-4 focus:ring-primary-500/5 text-[12px] font-bold outline-none transition-all shadow-sm"
                  />
               </div>
+
+              {/* Search Results Dropdown */}
+              <AnimatePresence>
+                 {searchResults && (
+                   <motion.div 
+                     initial={{ opacity: 0, y: 10 }} 
+                     animate={{ opacity: 1, y: 0 }} 
+                     exit={{ opacity: 0, y: 10 }}
+                     className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 overflow-hidden"
+                   >
+                      <div className="p-4 space-y-4">
+                         {searchResults.contacts.length > 0 && (
+                           <div className="space-y-2">
+                              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest px-1">People</p>
+                              <div className="space-y-1">
+                                 {searchResults.contacts.map((c, i) => (
+                                   <button key={i} onClick={() => { setActiveFlow('UPI ID / Phone'); setSearchQuery(''); }} className="w-full flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors text-left">
+                                      <div className={`w-6 h-6 ${c.color} rounded-md text-[8px] flex items-center justify-center text-white font-black`}>{c.avatar}</div>
+                                      <span className="text-[11px] font-bold text-slate-900">{c.name}</span>
+                                   </button>
+                                 ))}
+                              </div>
+                           </div>
+                         )}
+                         {searchResults.services.length > 0 && (
+                           <div className="space-y-2">
+                              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest px-1">Services</p>
+                              <div className="space-y-1">
+                                 {searchResults.services.map((s, i) => (
+                                   <button key={i} onClick={() => { setActiveFlow(s.label); setSearchQuery(''); }} className="w-full flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors text-left">
+                                      <div className={`w-6 h-6 ${s.color} rounded-md flex items-center justify-center text-white`}><s.icon size={12} /></div>
+                                      <span className="text-[11px] font-bold text-slate-900">{s.label}</span>
+                                   </button>
+                                 ))}
+                              </div>
+                           </div>
+                         )}
+                      </div>
+                   </motion.div>
+                 )}
+              </AnimatePresence>
+           </div>
               
               {/* Compact UPI Widget for Desktop */}
               <div className="hidden lg:flex items-center gap-3 bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
@@ -163,7 +232,10 @@ const Payments = () => {
                       key={i}
                       whileHover={{ y: -2 }}
                       whileTap={{ scale: 0.98 }}
-                      onClick={() => action.label.includes('Scan') && openScanner()}
+                      onClick={() => {
+                        if (action.label.includes('Scan')) openScanner();
+                        else setActiveFlow(action.label);
+                      }}
                       className="relative p-4 lg:p-5 bg-white border border-slate-100 rounded-xl shadow-sm hover:shadow-md transition-all flex items-center lg:flex-col lg:items-start gap-4 lg:gap-3 group overflow-hidden"
                     >
                       <div className={`w-10 h-10 lg:w-9 lg:h-9 ${action.color} rounded-lg flex items-center justify-center text-white shadow-md relative z-10 shrink-0`}>
@@ -209,6 +281,7 @@ const Payments = () => {
                     <motion.button 
                       key={i}
                       whileHover={{ scale: 1.05 }}
+                      onClick={() => setActiveFlow(item.label)}
                       className="flex flex-col items-center gap-2 group"
                     >
                       <div className={`w-10 h-10 lg:w-11 lg:h-11 ${item.color} rounded-lg flex items-center justify-center text-white shadow-sm transition-all group-hover:shadow-md group-hover:-translate-y-1`}>
@@ -295,7 +368,10 @@ const Payments = () => {
                     </div>
                   ))}
                </div>
-               <button className="w-full py-2 bg-slate-900 text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-md hover:bg-primary-600 transition-all flex items-center justify-center gap-2">
+               <button 
+                 onClick={() => setActiveFlow('Schedule')}
+                 className="w-full py-2 bg-slate-900 text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-md hover:bg-primary-600 transition-all flex items-center justify-center gap-2"
+               >
                   <Calendar size={12} /> Add Schedule
                </button>
             </div>
@@ -432,9 +508,16 @@ const Payments = () => {
                </motion.div>
             </div>
           )}
-        </AnimatePresence>
+         </AnimatePresence>
+
+         {/* Unified Payment Flows Modal */}
+         <PaymentFlows 
+           isOpen={!!activeFlow} 
+           onClose={() => setActiveFlow(null)} 
+           activeFlow={activeFlow} 
+         />
       </div>
-    </div>
+   
   );
 };
 

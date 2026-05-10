@@ -44,9 +44,11 @@ import {
   BarChart,
   Bar
 } from 'recharts';
+import IntelligenceModals from '../components/IntelligenceModals';
+import { X } from 'lucide-react';
 
 // --- Shared Mock Data ---
-const categories = [
+const INITIAL_CATEGORIES = [
   { name: 'Housing', spent: 45000, limit: 45000, icon: Home, color: '#6366f1' },
   { name: 'Food & Dining', spent: 12400, limit: 15000, icon: Utensils, color: '#f59e0b' },
   { name: 'Transport', spent: 8500, limit: 10000, icon: Car, color: '#10b981' },
@@ -55,17 +57,35 @@ const categories = [
   { name: 'Shopping', spent: 15600, limit: 12000, icon: ShoppingBag, color: '#8b5cf6' },
 ];
 
-const trendData = [
-  { name: 'Jun', spent: 72000, income: 95000, savings: 23000 },
-  { name: 'Jul', spent: 81000, income: 95000, savings: 14000 },
-  { name: 'Aug', spent: 78000, income: 110000, savings: 32000 },
-  { name: 'Sep', spent: 85000, income: 110000, savings: 25000 },
-  { name: 'Oct', spent: 96300, income: 125000, savings: 28700 },
-];
+const MONTHLY_TRENDS = {
+  Week: [
+    { name: 'Mon', spent: 2400, income: 4000 },
+    { name: 'Tue', spent: 1398, income: 3000 },
+    { name: 'Wed', spent: 9800, income: 2000 },
+    { name: 'Thu', spent: 3908, income: 2780 },
+    { name: 'Fri', spent: 4800, income: 1890 },
+    { name: 'Sat', spent: 3800, income: 2390 },
+    { name: 'Sun', spent: 4300, income: 3490 },
+  ],
+  Month: [
+    { name: 'Jun', spent: 72000, income: 95000 },
+    { name: 'Jul', spent: 81000, income: 95000 },
+    { name: 'Aug', spent: 78000, income: 110000 },
+    { name: 'Sep', spent: 85000, income: 110000 },
+    { name: 'Oct', spent: 96300, income: 125000 },
+  ],
+  Year: [
+    { name: '2019', spent: 850000, income: 1200000 },
+    { name: '2020', spent: 920000, income: 1300000 },
+    { name: '2021', spent: 980000, income: 1400000 },
+    { name: '2022', spent: 1100000, income: 1600000 },
+    { name: '2023', spent: 1250000, income: 1800000 },
+  ]
+};
 
 // --- Sub-Components ---
 
-const SpendingInsights = () => {
+const SpendingInsights = ({ categories }) => {
   const chartData = categories.map(cat => ({ name: cat.name, value: cat.spent, color: cat.color }));
   const totalSpent = categories.reduce((acc, curr) => acc + curr.spent, 0);
 
@@ -141,7 +161,7 @@ const SpendingInsights = () => {
   );
 };
 
-const BudgetPlanner = () => {
+const BudgetPlanner = ({ categories, onUpdateLimit, selectedMonth }) => {
   return (
     <motion.div 
       initial={{ opacity: 0, x: 20 }}
@@ -176,15 +196,25 @@ const BudgetPlanner = () => {
                               </div>
                               <div className="text-right">
                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Monthly Limit</p>
-                                 <div className="flex items-center gap-2 mt-1">
-                                    <span className="text-slate-400 font-bold">₹</span>
-                                    <input type="number" defaultValue={cat.limit} className="bg-transparent font-black text-slate-900 text-lg w-20 outline-none border-b border-transparent focus:border-primary-500 text-right" />
+                                    <input 
+                                      type="number" 
+                                      value={cat.limit} 
+                                      onChange={(e) => onUpdateLimit(i, Number(e.target.value))}
+                                      className="bg-transparent font-black text-slate-900 text-lg w-24 outline-none border-b border-transparent focus:border-primary-500 text-right" 
+                                    />
                                  </div>
                               </div>
                            </div>
-                           <input type="range" min="0" max={cat.limit * 2} defaultValue={cat.limit} className="w-full h-1.5 bg-slate-200 rounded-full appearance-none cursor-pointer accent-primary-600" />
+                           <input 
+                            type="range" 
+                            min="0" 
+                            max={100000} 
+                            value={cat.limit} 
+                            onChange={(e) => onUpdateLimit(i, Number(e.target.value))}
+                            className="w-full h-1.5 bg-slate-200 rounded-full appearance-none cursor-pointer accent-primary-600" 
+                           />
                         </div>
-                     </div>
+                   
                    ))}
                 </div>
              </div>
@@ -195,13 +225,13 @@ const BudgetPlanner = () => {
                 <Target size={32} className="text-primary-200" />
                 <div className="space-y-1">
                    <h3 className="text-xl font-black tracking-tight">Remaining Budget</h3>
-                   <p className="text-primary-100 text-[11px] font-bold uppercase tracking-widest">For October 2023</p>
+                   <p className="text-primary-100 text-[11px] font-bold uppercase tracking-widest">For {selectedMonth}</p>
                 </div>
-                <div className="text-4xl font-black tracking-tighter">₹28,700</div>
+                <div className="text-4xl font-black tracking-tighter">₹{(categories.reduce((acc, c) => acc + c.limit, 0) - categories.reduce((acc, c) => acc + c.spent, 0)).toLocaleString()}</div>
                 <div className="h-2 w-full bg-white/20 rounded-full overflow-hidden">
-                   <div className="h-full bg-white w-3/4 rounded-full" />
+                   <div className="h-full bg-white rounded-full transition-all duration-500" style={{ width: `${Math.min((categories.reduce((acc, c) => acc + c.spent, 0) / categories.reduce((acc, c) => acc + c.limit, 0)) * 100, 100)}%` }} />
                 </div>
-                <p className="text-[11px] font-medium text-primary-50 text-center">You have used 75% of your total monthly allocation.</p>
+                <p className="text-[11px] font-medium text-primary-50 text-center">You have used {((categories.reduce((acc, c) => acc + c.spent, 0) / categories.reduce((acc, c) => acc + c.limit, 0)) * 100).toFixed(0)}% of your total monthly allocation.</p>
              </div>
 
              <div className="bg-white p-6 rounded-[2.5rem] border border-slate-50 shadow-sm space-y-4">
@@ -220,7 +250,8 @@ const BudgetPlanner = () => {
   );
 };
 
-const SpendingTrends = () => {
+const SpendingTrends = ({ categories, timeFrame, setTimeFrame }) => {
+  const trendData = MONTHLY_TRENDS[timeFrame] || MONTHLY_TRENDS.Month;
   return (
     <motion.div 
       initial={{ opacity: 0, x: -20 }}
@@ -237,7 +268,11 @@ const SpendingTrends = () => {
                 </div>
                 <div className="flex bg-slate-50 p-1 rounded-xl">
                    {['Week', 'Month', 'Year'].map(t => (
-                     <button key={t} className={`px-4 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${t === 'Month' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400'}`}>
+                     <button 
+                       key={t} 
+                       onClick={() => setTimeFrame(t)}
+                       className={`px-4 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${timeFrame === t ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400'}`}
+                     >
                         {t}
                      </button>
                    ))}
@@ -302,7 +337,7 @@ const SpendingTrends = () => {
   );
 };
 
-const FinancialAdvisory = () => {
+const FinancialAdvisory = ({ onOptimize }) => {
    return (
       <motion.div 
          initial={{ opacity: 0, scale: 0.98 }}
@@ -390,7 +425,12 @@ const FinancialAdvisory = () => {
                   <p className="text-xs font-medium text-primary-50 leading-relaxed opacity-90">
                      We found ₹1.2L sitting idle in your savings. Moving this to a "Vertex Flexi-FD" could earn you an extra ₹8,400 per year.
                   </p>
-                  <button className="w-full py-4 bg-white text-primary-600 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:scale-[1.02] transition-transform">Optimize Now</button>
+                  <button 
+                    onClick={onOptimize}
+                    className="w-full py-4 bg-white text-primary-600 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:scale-[1.02] transition-transform"
+                  >
+                    Optimize Now
+                  </button>
                </div>
 
                <div className="bg-white p-8 rounded-[2.5rem] border border-slate-50 shadow-sm space-y-6">
@@ -444,6 +484,19 @@ const FinancialAdvisory = () => {
 
 const Analytics = () => {
   const [activeTab, setActiveTab] = useState('insights');
+  const [selectedMonth, setSelectedMonth] = useState('October 2023');
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [timeFrame, setTimeFrame] = useState('Month');
+  const [categories, setCategories] = useState(INITIAL_CATEGORIES);
+  const [showOptimizer, setShowOptimizer] = useState(false);
+
+  const months = ['August 2023', 'September 2023', 'October 2023', 'November 2023'];
+
+  const handleUpdateLimit = (index, newLimit) => {
+    const updated = [...categories];
+    updated[index].limit = newLimit;
+    setCategories(updated);
+  };
 
   const tabs = [
     { id: 'insights', label: 'Analysis', icon: LucidePieChart },
@@ -464,25 +517,52 @@ const Analytics = () => {
                  AI-powered wealth management, credit insights, and advisory.
               </p>
            </div>
-           <button className="flex items-center gap-3 px-5 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm text-[12px] font-black text-slate-700 hover:bg-slate-50 transition-all">
-              October 2023 <ChevronDown size={16} className="text-slate-400" />
-           </button>
+           
+           <div className="relative">
+              <button 
+                onClick={() => setShowMonthPicker(!showMonthPicker)}
+                className="flex items-center gap-3 px-5 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm text-[12px] font-black text-slate-700 hover:bg-slate-50 transition-all"
+              >
+                 {selectedMonth} <ChevronDown size={16} className={`text-slate-400 transition-transform ${showMonthPicker ? 'rotate-180' : ''}`} />
+              </button>
+
+              <AnimatePresence>
+                {showMonthPicker && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute top-full right-0 mt-2 w-48 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[100] overflow-hidden"
+                  >
+                    {months.map(m => (
+                      <button 
+                        key={m}
+                        onClick={() => { setSelectedMonth(m); setShowMonthPicker(false); }}
+                        className={`w-full px-5 py-3 text-[11px] font-black uppercase tracking-widest text-left hover:bg-slate-50 transition-colors ${selectedMonth === m ? 'text-primary-600 bg-primary-50/30' : 'text-slate-500'}`}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+           </div>
         </div>
 
         {/* Functional Tab Navigation */}
-        <div className="bg-slate-50/50 p-1.5 lg:bg-transparent lg:p-0 rounded-[1.5rem] lg:rounded-none mb-10 border lg:border-0 lg:border-b border-slate-100 flex items-center w-full">
+        <div className="bg-slate-50/50 p-1.5 lg:bg-transparent lg:p-0 rounded-[1.5rem] lg:rounded-none mb-10 border lg:border-0 lg:border-b border-slate-100 flex items-center w-full overflow-x-auto no-scrollbar">
            {tabs.map((tab) => (
              <button 
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 px-1 lg:px-8 py-3.5 lg:py-5 text-[8px] lg:text-[11px] font-black uppercase tracking-tight lg:tracking-[0.25em] relative transition-all flex items-center justify-center gap-1.5 lg:gap-2.5 rounded-[1.2rem] lg:rounded-none ${
+              className={`flex-1 px-4 lg:px-8 py-3.5 lg:py-5 text-[9px] lg:text-[11px] font-black uppercase tracking-tight lg:tracking-[0.25em] relative transition-all flex items-center justify-center gap-1.5 lg:gap-2.5 rounded-[1.2rem] lg:rounded-none ${
                 activeTab === tab.id 
                   ? 'text-primary-600 bg-white lg:bg-transparent shadow-sm lg:shadow-none' 
                   : 'text-slate-400 hover:text-slate-600'
               }`}
              >
                 <tab.icon size={12} className="shrink-0 lg:w-[15px] lg:h-[15px]" strokeWidth={activeTab === tab.id ? 2.5 : 2} />
-                <span className="whitespace-nowrap">{tab.id === 'advisory' && window.innerWidth < 768 ? 'Advisory' : tab.label}</span>
+                <span className="whitespace-nowrap">{tab.label}</span>
                 
                 {activeTab === tab.id && (
                   <motion.div 
@@ -498,12 +578,14 @@ const Analytics = () => {
         {/* Dynamic Tab Content */}
         <div className="relative">
           <AnimatePresence mode="wait">
-             {activeTab === 'insights' && <SpendingInsights key="insights" />}
-             {activeTab === 'planner' && <BudgetPlanner key="planner" />}
-             {activeTab === 'trends' && <SpendingTrends key="trends" />}
-             {activeTab === 'advisory' && <FinancialAdvisory key="advisory" />}
+             {activeTab === 'insights' && <SpendingInsights key="insights" categories={categories} />}
+             {activeTab === 'planner' && <BudgetPlanner key="planner" categories={categories} onUpdateLimit={handleUpdateLimit} selectedMonth={selectedMonth} />}
+             {activeTab === 'trends' && <SpendingTrends key="trends" categories={categories} timeFrame={timeFrame} setTimeFrame={setTimeFrame} />}
+             {activeTab === 'advisory' && <FinancialAdvisory key="advisory" onOptimize={() => setShowOptimizer(true)} />}
           </AnimatePresence>
         </div>
+
+        <IntelligenceModals isOpen={showOptimizer} onClose={() => setShowOptimizer(false)} />
 
       </div>
     </div>
