@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, TrendingUp, ArrowUpRight, QrCode } from 'lucide-react';
 import { useQR } from '../context/QRContext';
 
-const BalanceCard = ({ balance = 2456000, growth = "+12.4%", accountType = "Savings Account • 4921" }) => {
+const BalanceCard = ({ balance = 2456000, growth = "+12.4%", accountType = "Savings Account • 4921", onTransferClick }) => {
   const [isVisible, setIsVisible] = useState(false);
   const { openScanner } = useQR();
 
@@ -53,6 +53,7 @@ const BalanceCard = ({ balance = 2456000, growth = "+12.4%", accountType = "Savi
            <motion.button 
             whileHover={{ y: -2 }}
             whileTap={{ scale: 0.98 }}
+            onClick={onTransferClick}
             className="flex-1 lg:flex-none px-7 py-4 bg-primary-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl shadow-primary-200 hover:bg-primary-700 transition-all flex items-center justify-center gap-2.5"
            >
               <ArrowUpRight size={16} strokeWidth={3} />

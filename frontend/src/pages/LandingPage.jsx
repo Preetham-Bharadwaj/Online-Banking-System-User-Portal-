@@ -506,58 +506,57 @@ const LandingPage = () => {
       </section>
 
       {/* 11. Footer Content */}
-      <footer className="pt-20 pb-10 bg-white border-t border-slate-100 px-4">
+      <footer className="pt-12 pb-6 md:pt-20 md:pb-10 bg-white border-t border-slate-100 px-4">
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-12 mb-20">
-            <div className="col-span-2 space-y-6">
-              <div className="flex items-center gap-2 text-primary-600 font-bold text-2xl">
-                <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white">
-                  <span className="text-sm">V</span>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-8 md:gap-12 mb-10 md:mb-20">
+            <div className="col-span-2 space-y-4 md:space-y-6">
+              <div className="flex items-center gap-2 text-primary-600 font-bold text-xl md:text-2xl">
+                <div className="w-6 h-6 md:w-8 md:h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white">
+                  <span className="text-xs md:text-sm">V</span>
                 </div>
                 Vertex Bank
               </div>
-              <p className="text-slate-500 text-sm leading-relaxed max-w-xs">
+              <p className="text-slate-500 text-xs md:text-sm leading-relaxed max-w-xs">
                 The modern banking platform designed for India's digital future. Safe, smart, and stunningly simple.
               </p>
-              <div className="flex gap-4">
-                <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:text-primary-600 cursor-pointer transition-colors"><Globe size={18} /></div>
-                <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:text-primary-600 cursor-pointer transition-colors"><Settings size={18} /></div>
-                <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:text-primary-600 cursor-pointer transition-colors"><Users size={18} /></div>
+              <div className="flex gap-3 md:gap-4">
+                <div className="w-8 h-8 md:w-10 md:h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:text-primary-600 cursor-pointer transition-colors"><Globe size={16} /></div>
+                <div className="w-8 h-8 md:w-10 md:h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:text-primary-600 cursor-pointer transition-colors"><Settings size={16} /></div>
+                <div className="w-8 h-8 md:w-10 md:h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:text-primary-600 cursor-pointer transition-colors"><Users size={16} /></div>
               </div>
             </div>
-            <div className="space-y-6">
-              <h5 className="font-bold text-slate-900 uppercase text-xs tracking-widest">Product</h5>
-              <ul className="space-y-4 text-slate-500 text-sm">
+            <div className="space-y-4 md:space-y-6">
+              <h5 className="font-bold text-slate-900 uppercase text-[10px] md:text-xs tracking-widest">Product</h5>
+              <ul className="space-y-2 md:space-y-4 text-slate-500 text-xs md:text-sm">
                 <li><a href="#" className="hover:text-primary-600 transition-colors">Features</a></li>
                 <li><a href="#" className="hover:text-primary-600 transition-colors">Security</a></li>
                 <li><a href="#" className="hover:text-primary-600 transition-colors">Cards</a></li>
-                <li><a href="#" className="hover:text-primary-600 transition-colors">UPI Payments</a></li>
+                <li><a href="#" className="hover:text-primary-600 transition-colors">UPI</a></li>
               </ul>
             </div>
-            <div className="space-y-6">
-              <h5 className="font-bold text-slate-900 uppercase text-xs tracking-widest">Company</h5>
-              <ul className="space-y-4 text-slate-500 text-sm">
-                <li><a href="#" className="hover:text-primary-600 transition-colors">About Us</a></li>
+            <div className="space-y-4 md:space-y-6">
+              <h5 className="font-bold text-slate-900 uppercase text-[10px] md:text-xs tracking-widest">Company</h5>
+              <ul className="space-y-2 md:space-y-4 text-slate-500 text-xs md:text-sm">
+                <li><a href="#" className="hover:text-primary-600 transition-colors">About</a></li>
                 <li><a href="#" className="hover:text-primary-600 transition-colors">Careers</a></li>
                 <li><a href="#" className="hover:text-primary-600 transition-colors">Blog</a></li>
-                <li><a href="#" className="hover:text-primary-600 transition-colors">Newsroom</a></li>
+                <li><a href="#" className="hover:text-primary-600 transition-colors">News</a></li>
               </ul>
             </div>
-            <div className="space-y-6">
-              <h5 className="font-bold text-slate-900 uppercase text-xs tracking-widest">Legal</h5>
-              <ul className="space-y-4 text-slate-500 text-sm">
-                <li><a href="#" className="hover:text-primary-600 transition-colors">Privacy Policy</a></li>
-                <li><a href="#" className="hover:text-primary-600 transition-colors">Terms of Use</a></li>
-                <li><a href="#" className="hover:text-primary-600 transition-colors">Cookie Policy</a></li>
+            <div className="space-y-4 md:space-y-6 col-span-2 md:col-span-1">
+              <h5 className="font-bold text-slate-900 uppercase text-[10px] md:text-xs tracking-widest">Legal</h5>
+              <ul className="flex flex-wrap gap-4 md:block md:space-y-4 text-slate-500 text-xs md:text-sm">
+                <li><a href="#" className="hover:text-primary-600 transition-colors">Privacy</a></li>
+                <li><a href="#" className="hover:text-primary-600 transition-colors">Terms</a></li>
                 <li><a href="#" className="hover:text-primary-600 transition-colors">Security</a></li>
               </ul>
             </div>
           </div>
-          <div className="border-t border-slate-100 pt-8 flex flex-col md:row items-center justify-between gap-4 text-slate-400 text-xs">
-            <p>© 2026 Vertex Digital Bank Limited. All rights reserved.</p>
-            <div className="flex gap-6">
-               <p>Banking services provided by our Partner Banks.</p>
-               <p>RBI Registered NBFC-P2P.</p>
+          <div className="border-t border-slate-100 pt-6 flex flex-col md:flex-row items-center justify-between gap-2 md:gap-4 text-slate-400 text-[10px] md:text-xs text-center md:text-left">
+            <p>© 2026 Vertex Bank.</p>
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-6">
+               <p>Powered by Partner Banks.</p>
+               <p>RBI Registered.</p>
             </div>
           </div>
         </div>

@@ -25,14 +25,16 @@ import {
   ChevronRight
 } from 'lucide-react';
 
-// --- Reusable Components ---
 import QuickAction from '../components/QuickAction';
 import InsightCard from '../components/InsightCard';
 import ContactAvatar from '../components/ContactAvatar';
 import BalanceCard from '../components/BalanceCard';
+import TransferFlow from '../components/TransferFlow';
+import { useState } from 'react';
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const [isTransferOpen, setIsTransferOpen] = useState(false);
 
   const transactions = [
     { id: 1, name: 'Apple Store', category: 'Gadgets', date: '2:30 PM', amount: -89000, type: 'expense', avatar: 'AS', color: 'bg-slate-900', status: 'Verified' },
@@ -46,8 +48,8 @@ const Dashboard = () => {
       id: 'fd', 
       title: 'Fixed Deposits', 
       value: '₹4,50,000', 
-      detail: 'Maturity in 14 days', 
-      trend: '+6.8% p.a', 
+      detail: 'Maturity: 14 Oct 2026', 
+      trend: '+₹28,500 Earned', 
       icon: <Lock size={20} />, 
       color: 'text-indigo-600', 
       bg: 'bg-indigo-50' 
@@ -56,8 +58,8 @@ const Dashboard = () => {
       id: 'loan', 
       title: 'Active Loans', 
       value: '₹2,40,000', 
-      detail: 'EMI due Oct 28', 
-      trend: '₹12,400 Monthly', 
+      detail: 'EMI: ₹12,400 due Oct 28', 
+      trend: '₹1,80,000 Balance', 
       icon: <Wallet size={20} />, 
       color: 'text-rose-600', 
       bg: 'bg-rose-50' 
@@ -96,9 +98,14 @@ const Dashboard = () => {
         </div>
 
         {/* 2. Hero Balance Section (Primary Focus) */}
-        <div className="lg:max-w-4xl">
-           <BalanceCard balance={2456000} growth="+12.4%" accountType="Premium Savings • 4921" />
-        </div>
+         <div className="lg:max-w-4xl">
+            <BalanceCard 
+              balance={2456000} 
+              growth="+12.4%" 
+              accountType="Premium Savings • 4921" 
+              onTransferClick={() => setIsTransferOpen(true)}
+            />
+         </div>
 
         {/* 3. Banking Ecosystem Highlights (NEW) */}
         <div className="space-y-4">
@@ -183,26 +190,6 @@ const Dashboard = () => {
            </div>
         </div>
 
-        {/* 5. Utility Bar (Refined Quick Actions) */}
-        <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200/60 shadow-sm flex items-center justify-between px-10">
-           {[
-             { id: 'scan', label: 'Scan', icon: <QrCode size={20} />, color: 'group-hover:bg-primary-600', shadow: 'group-hover:shadow-primary-100' },
-             { id: 'pay', label: 'Transfer', icon: <Send size={20} />, color: 'group-hover:bg-indigo-600', shadow: 'group-hover:shadow-indigo-100' },
-             { id: 'cards', label: 'Cards', icon: <CreditCard size={20} />, color: 'group-hover:bg-rose-600', shadow: 'group-hover:shadow-rose-100' },
-             { id: 'bills', label: 'Bills', icon: <Receipt size={20} />, color: 'group-hover:bg-slate-900', shadow: 'group-hover:shadow-slate-100' },
-           ].map((action) => (
-             <button 
-               key={action.id}
-               onClick={() => navigate(action.id === 'cards' ? '/app/cards' : '/app/payments')} 
-               className="flex flex-col items-center gap-2 group text-center"
-             >
-                <div className={`w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center transition-all ${action.color} group-hover:text-white group-hover:shadow-lg ${action.shadow} group-hover:-translate-y-1`}>
-                   {action.icon}
-                </div>
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{action.label}</span>
-             </button>
-           ))}
-        </div>
 
         {/* 6. Smart Insight & EMI Alerts (NEW) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -311,9 +298,11 @@ const Dashboard = () => {
                  </div>
               </div>
            </div>
-        </div>
-      </div>
     </div>
+  </div>
+
+  <TransferFlow isOpen={isTransferOpen} onClose={() => setIsTransferOpen(false)} />
+</div>
   );
 };
 
