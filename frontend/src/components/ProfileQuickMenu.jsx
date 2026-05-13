@@ -15,9 +15,23 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import useStore from '../store/useStore';
 
 const ProfileQuickMenu = ({ isOpen, onClose, isMobile }) => {
   const navigate = useNavigate();
+  const { user, logout } = useStore();
+
+  const initials = user?.full_name
+    ? user.full_name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+    : '?';
+  const displayName = user?.full_name || 'User';
+  const isVerified = user?.kyc_status === 'verified';
+
+  const handleLogout = () => {
+    logout();
+    onClose();
+    navigate('/login');
+  };
 
   // Desktop Menu Items
   const desktopItems = [
@@ -25,7 +39,7 @@ const ProfileQuickMenu = ({ isOpen, onClose, isMobile }) => {
     { icon: Settings, label: 'Settings', href: '/app/settings', color: 'text-slate-600' },
     { icon: Shield, label: 'Security Center', href: '/app/security', color: 'text-slate-600' },
     { icon: HelpCircle, label: 'Help & Support', href: '/app/support', color: 'text-slate-600' },
-    { icon: LogOut, label: 'Logout', href: '/', color: 'text-rose-500' },
+    { icon: LogOut, label: 'Logout', action: handleLogout, color: 'text-rose-500' },
   ];
 
   // Mobile Quick Account Items
@@ -35,12 +49,14 @@ const ProfileQuickMenu = ({ isOpen, onClose, isMobile }) => {
     { icon: Shield, label: 'Security Center', href: '/app/security', color: 'text-slate-600' },
     { icon: HelpCircle, label: 'Help & Support', href: '/app/support', color: 'text-slate-600' },
     { icon: Users, label: 'Switch Account', color: 'text-slate-600' },
-    { icon: LogOut, label: 'Logout Session', href: '/', color: 'text-rose-500' },
+    { icon: LogOut, label: 'Logout Session', action: handleLogout, color: 'text-rose-500' },
   ];
 
   const handleItemClick = (item) => {
     onClose();
-    if (item.href) {
+    if (item.action) {
+      item.action();
+    } else if (item.href) {
       navigate(item.href);
     }
   };
@@ -71,13 +87,13 @@ const ProfileQuickMenu = ({ isOpen, onClose, isMobile }) => {
               <div className="flex items-center justify-between mb-8 px-2">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-indigo-600 text-white flex items-center justify-center font-black text-lg shadow-lg border-2 border-white">
-                    AL
+                    {initials}
                   </div>
                   <div>
-                    <h3 className="text-lg font-black text-slate-900 leading-none">Alex Lee</h3>
+                    <h3 className="text-lg font-black text-slate-900 leading-none">{displayName}</h3>
                     <div className="flex items-center gap-1.5 mt-2">
-                       <ShieldCheck size={12} className="text-emerald-500" />
-                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Verified Premium</p>
+                       <ShieldCheck size={12} className={isVerified ? 'text-emerald-500' : 'text-amber-500'} />
+                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">{isVerified ? 'Verified' : 'Pending KYC'}</p>
                     </div>
                   </div>
                 </div>
@@ -112,7 +128,7 @@ const ProfileQuickMenu = ({ isOpen, onClose, isMobile }) => {
 
               {/* Version Info */}
               <div className="mt-6 pt-6 border-t border-slate-50 text-center">
-                 <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Vertex Mobile v2.4.0</p>
+                 <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Finova Mobile v2.4.0</p>
               </div>
             </motion.div>
           </>
@@ -133,11 +149,11 @@ const ProfileQuickMenu = ({ isOpen, onClose, isMobile }) => {
         >
           <div className="p-3 mb-2 border-b border-slate-100 flex items-center gap-3">
              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-500 to-indigo-600 text-white flex items-center justify-center font-black text-xs shadow-sm">
-                AL
+                {initials}
              </div>
              <div>
-                <p className="text-xs font-black text-slate-900 leading-none">Alex Lee</p>
-                <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-tight">Verified Profile</p>
+                <p className="text-xs font-black text-slate-900 leading-none">{displayName}</p>
+                <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-tight">{isVerified ? 'Verified Profile' : 'Pending KYC'}</p>
              </div>
           </div>
           

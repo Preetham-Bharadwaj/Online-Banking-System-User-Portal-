@@ -20,27 +20,132 @@ import {
   MoreHorizontal
 } from 'lucide-react';
 
-const PaymentFlows = ({ isOpen, onClose, activeFlow, setFlow }) => {
-  const [step, setStep] = useState(1); // 1: Input, 2: Confirm, 3: Success
+import useStore from '../store/useStore';
+import { bankingService } from '../services/bankingService';
+import authService from '../services/authService';
+
+const PaymentFlows = ({ isOpen, onClose, activeFlow, setFlow, initialData }) => {
+
+  const [step, setStep] = useState(1); // 1: Search/Contact, 2: Amount, 3: Success, 4: PIN
   const [loading, setLoading] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
   const [formData, setFormData] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
+  const [upiPin, setUpiPin] = useState('');
+  const [error, setError] = useState(null);
+  const { beneficiaries, accounts, setBankingData } = useStore();
 
-  const handleClose = () => {
+  
+  useEffect(() => {
+    if (isOpen && initialData) {
+      if (initialData.upi) {
+        setSearchQuery(initialData.upi);
+        setFormData(prev => ({ ...prev, upi: initialData.upi, name: initialData.name }));
+        setStep(2); // Skip to amount if we already have a user
+      }
+    }
+  }, [isOpen, initialData]);
+
+
+  const handleSearch = async (query) => {
+    setSearchQuery(query);
+    if (query.length > 2) {
+      setSearching(true);
+      try {
+        const users = await authService.searchUsers(query);
+        setSearchResults(users);
+      } catch (err) {
+        console.error("Discovery failed:", err);
+      } finally {
+        setSearching(false);
+      }
+    } else {
+      setSearchResults([]);
+    }
+  };
+
+
+  const resetFlow = () => {
     setStep(1);
     setFormData({});
     setSearchQuery('');
+    setUpiPin('');
+    setError(null);
     onClose();
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (activeFlow === 'UPI ID / Phone' && step === 2) {
+      setStep(4); // PIN step for UPI
+      return;
+    }
+
     setLoading(true);
-    setTimeout(() => {
+    setError(null);
+
+    // Frontend balance check
+    const balance = accounts[0]?.balance || 0;
+    if (parseFloat(formData.amount) > balance) {
+      setError("Insufficient balance");
       setLoading(false);
+      return;
+    }
+
+    try {
+      if (activeFlow === 'UPI ID / Phone') {
+        await bankingService.upiTransfer({
+          receiverUpi: formData.upi,
+          amount: parseFloat(formData.amount),
+          pin: upiPin,
+          note: formData.note
+        });
+      } else {
+        const fromAccountId = accounts[0]?.id;
+        if (!fromAccountId) throw new Error("No source account found.");
+
+        await bankingService.initiateTransfer({
+          fromAccountId,
+          toAccountDetails: { 
+            name: formData.name,
+            account_number: formData.acc,
+            ifsc: formData.ifsc,
+            upi: formData.upi
+          },
+          amount: parseFloat(formData.amount),
+          type: activeFlow,
+          note: formData.note,
+          category: activeFlow === 'Utilities' ? 'Bills' : 'Transfer'
+        });
+      }
+
+      // Refresh global state
+      const updatedData = await bankingService.getDashboardData();
+      setBankingData(updatedData);
+
       setStep(3);
-    }, 1500);
+    } catch (err) {
+      console.error("Payment error:", err);
+      setError(err.response?.data?.error || err.message || "Payment failed.");
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const ErrorAlert = () => error ? (
+    <motion.div 
+      initial={{ opacity: 0, y: -10 }} 
+      animate={{ opacity: 1, y: 0 }} 
+      className="mx-8 mt-4 p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-3"
+    >
+      <div className="w-8 h-8 bg-rose-500 text-white rounded-lg flex items-center justify-center shrink-0">
+        <X size={14} />
+      </div>
+      <p className="text-[11px] font-bold text-rose-600 uppercase tracking-tight">{error}</p>
+    </motion.div>
+  ) : null;
 
   if (!isOpen) return null;
 
@@ -65,7 +170,7 @@ const PaymentFlows = ({ isOpen, onClose, activeFlow, setFlow }) => {
             <p className="text-2xl font-black text-primary-600 mt-3">₹{formData.amount || '0'}</p>
           </div>
           <button 
-            onClick={handleClose}
+            onClick={resetFlow}
             className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-[12px] uppercase tracking-[0.2em] shadow-xl hover:bg-black transition-all"
           >
             Done
@@ -130,32 +235,68 @@ const PaymentFlows = ({ isOpen, onClose, activeFlow, setFlow }) => {
         return (
           <div className="p-8 lg:p-10 space-y-8">
             <div className="relative group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary-600 transition-colors" size={18} />
+              <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${searching ? 'text-primary-600 animate-pulse' : 'text-slate-400 group-focus-within:text-primary-600'}`} size={18} />
               <input 
                 type="text" 
                 placeholder="Enter UPI ID or Phone..." 
+                value={searchQuery}
                 className="w-full pl-12 pr-4 py-5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-500/5 text-sm font-bold text-slate-900 outline-none transition-all"
+                onChange={(e) => handleSearch(e.target.value)}
               />
             </div>
+
+            {/* Search Results Dropdown */}
+            {searchResults.length > 0 && (
+              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Found Users</h4>
+                <div className="space-y-1">
+                  {searchResults.map((user) => (
+                    <button 
+                      key={user.id} 
+                      onClick={() => {
+                        setFormData({ ...formData, upi: user.upi_id, name: user.full_name });
+                        setSearchQuery(user.upi_id);
+                        setSearchResults([]);
+                        setStep(2);
+                      }}
+                      className="w-full flex items-center gap-3 p-3 hover:bg-white rounded-xl transition-all group"
+                    >
+                      <div className="w-10 h-10 bg-primary-600 text-white rounded-lg flex items-center justify-center font-black text-xs">
+                        {user.full_name.substring(0, 2).toUpperCase()}
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-black text-slate-900">{user.full_name}</p>
+                        <p className="text-[10px] font-bold text-slate-400">{user.upi_id}</p>
+                      </div>
+                      {user.is_verified && <ShieldCheck size={14} className="text-primary-600 ml-auto" />}
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
 
             <div className="space-y-4">
               <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Recent Beneficiaries</h4>
               <div className="grid grid-cols-4 gap-4">
-                {[
-                  { n: 'Rahul', a: 'RS', c: 'bg-blue-500' },
-                  { n: 'Priya', a: 'PV', c: 'bg-rose-500' },
-                  { n: 'Mom', a: 'M', c: 'bg-emerald-500' },
-                  { n: 'Rent', a: 'R', c: 'bg-slate-800' }
-                ].map((item, i) => (
-                  <button key={i} onClick={() => setStep(2)} className="flex flex-col items-center gap-2 group">
-                    <div className={`w-12 h-12 ${item.c} text-white rounded-xl flex items-center justify-center font-black text-xs shadow-sm group-hover:scale-110 transition-transform`}>
-                      {item.a}
+                {beneficiaries.length > 0 ? beneficiaries.slice(0, 4).map((item, i) => (
+                  <button key={i} onClick={() => {
+                    setFormData({...formData, name: item.beneficiary_name, upi: item.upi_id});
+                    setSearchQuery(item.upi_id);
+                    setStep(2);
+                  }} className="flex flex-col items-center gap-2 group">
+                    <div className={`w-12 h-12 ${item.color || 'bg-primary-600'} text-white rounded-xl flex items-center justify-center font-black text-xs shadow-sm group-hover:scale-110 transition-transform`}>
+                      {item.avatar || item.beneficiary_name?.substring(0, 2).toUpperCase()}
                     </div>
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{item.n}</span>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest truncate w-full text-center">{item.beneficiary_name}</span>
                   </button>
-                ))}
+                )) : (
+                  <div className="col-span-4 py-4 text-center">
+                    <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">No recent contacts</p>
+                  </div>
+                )}
               </div>
             </div>
+
 
             {step === 2 && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pt-4 border-t border-slate-100">
@@ -174,7 +315,33 @@ const PaymentFlows = ({ isOpen, onClose, activeFlow, setFlow }) => {
                   onClick={handleSubmit}
                   className="w-full py-6 bg-indigo-600 text-white rounded-[2rem] font-black text-[12px] uppercase tracking-[0.3em] shadow-xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-3"
                 >
-                  Pay Securely
+                  Continue
+                </button>
+              </motion.div>
+            )}
+
+            {step === 4 && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pt-4 border-t border-slate-100">
+                <div className="text-center">
+                  <h4 className="text-lg font-black text-slate-900">Enter UPI PIN</h4>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Verify your identity</p>
+                </div>
+                <div className="flex justify-center">
+                  <input 
+                    required
+                    type="password"
+                    maxLength="6"
+                    placeholder="••••••"
+                    autoFocus
+                    className="w-48 text-center py-6 bg-slate-50 border-2 border-slate-100 focus:border-primary-500/20 focus:bg-white rounded-2xl text-3xl font-black tracking-[0.5em] outline-none transition-all"
+                    onChange={(e) => setUpiPin(e.target.value)}
+                  />
+                </div>
+                <button 
+                  onClick={handleSubmit}
+                  className="w-full py-6 bg-slate-900 text-white rounded-[2rem] font-black text-[12px] uppercase tracking-[0.3em] shadow-xl hover:bg-primary-600 transition-all flex items-center justify-center gap-3"
+                >
+                  {loading ? <RefreshCcw className="animate-spin" /> : `Pay ₹${formData.amount} Now`}
                 </button>
               </motion.div>
             )}
@@ -369,7 +536,7 @@ const PaymentFlows = ({ isOpen, onClose, activeFlow, setFlow }) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={handleClose}
+            onClick={resetFlow}
             className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
           />
 
@@ -386,13 +553,14 @@ const PaymentFlows = ({ isOpen, onClose, activeFlow, setFlow }) => {
                 <h3 className="text-xl font-black text-slate-900 tracking-tight">{activeFlow}</h3>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Secure Banking Portal</p>
               </div>
-              <button onClick={handleClose} className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-900 transition-colors">
+              <button onClick={resetFlow} className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-900 transition-colors">
                 <X size={20} />
               </button>
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto no-scrollbar">
+            <div className="flex-1 overflow-y-auto no-scrollbar pb-8">
+               <ErrorAlert />
                {renderContent()}
             </div>
           </motion.div>

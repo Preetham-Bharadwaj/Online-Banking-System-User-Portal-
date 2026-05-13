@@ -25,7 +25,7 @@ export const QRProvider = ({ children }) => {
     setIsScannerOpen(false);
     
     // Logic to parse UPI URL and navigate to Payment Confirmation
-    // upi://pay?pa=alexlee@vertex&pn=Alex Lee
+    // upi://pay?pa=user@vertex&pn=Customer
     if (data.startsWith('upi://pay')) {
       const params = new URLSearchParams(data.split('?')[1]);
       const receiver = {

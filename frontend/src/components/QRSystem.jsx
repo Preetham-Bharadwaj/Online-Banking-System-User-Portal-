@@ -18,6 +18,7 @@ import {
   Maximize2
 } from 'lucide-react';
 import { useQR } from '../context/QRContext';
+import useStore from '../store/useStore';
 
 export const QRPortal = () => {
   const { isScannerOpen, closeScanner, isGeneratorOpen, closeGenerator, handleScanSuccess } = useQR();
@@ -222,7 +223,7 @@ const QRScannerModal = ({ onClose, onSuccess }) => {
         {/* Footer */}
         <div className="p-8 bg-slate-50 flex items-center justify-center gap-3">
            <ShieldCheck size={16} className="text-emerald-500" />
-           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">PCI DSS Secure Scan • Vertex Bank</span>
+           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">PCI DSS Secure Scan • Finova Bank</span>
         </div>
       </motion.div>
     </div>
@@ -231,8 +232,10 @@ const QRScannerModal = ({ onClose, onSuccess }) => {
 
 const QRGeneratorModal = ({ onClose }) => {
   const [isCopied, setIsCopied] = useState(false);
-  const upiId = "alexlee@vertex";
-  const upiPayload = `upi://pay?pa=${upiId}&pn=Alex Lee&cu=INR`;
+  const { user, activeAccount } = useStore();
+  const upiId = activeAccount?.upi_id || `${user?.email?.split('@')[0] || 'user'}@finova`;
+  const displayName = user?.full_name || 'Finova Customer';
+  const upiPayload = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(displayName)}&cu=INR`;
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(upiId);
@@ -266,10 +269,10 @@ const QRGeneratorModal = ({ onClose }) => {
         <div className="p-10 space-y-10 flex flex-col items-center">
            {/* Profile Mini Card */}
            <div className="flex items-center gap-4 w-full">
-              <div className="w-14 h-14 bg-primary-600 rounded-2xl flex items-center justify-center text-white text-xl font-black">AL</div>
+              <div className="w-14 h-14 bg-primary-600 rounded-2xl flex items-center justify-center text-white text-xl font-black">{displayName.substring(0, 2).toUpperCase()}</div>
               <div>
-                 <h4 className="font-black text-slate-900 text-lg leading-none">Alex Lee</h4>
-                 <p className="text-[10px] font-bold text-slate-400 uppercase mt-2 tracking-widest">Personal Account • Vertex Bank</p>
+                 <h4 className="font-black text-slate-900 text-lg leading-none">{displayName}</h4>
+                 <p className="text-[10px] font-bold text-slate-400 uppercase mt-2 tracking-widest">{activeAccount?.account_type || 'Personal'} Account - Finova Bank</p>
               </div>
            </div>
 
@@ -323,7 +326,7 @@ const QRGeneratorModal = ({ onClose }) => {
 
         <div className="p-6 bg-slate-50 flex items-center justify-center gap-2">
            <ShieldCheck size={14} className="text-emerald-500" />
-           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Verified Payment QR • Vertex Secure</span>
+           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Verified Payment QR • Finova Secure</span>
         </div>
       </motion.div>
     </div>

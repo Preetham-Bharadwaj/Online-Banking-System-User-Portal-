@@ -1,6 +1,6 @@
 import { QrCode } from 'lucide-react';
 
-const UPIWidget = ({ upiId = "alexlee@vertex" }) => (
+const UPIWidget = ({ upiId = 'upi pending' }) => (
   <div className="bg-gradient-to-br from-primary-600 to-primary-800 rounded-3xl p-6 text-white shadow-xl shadow-primary-100 relative overflow-hidden group h-full flex flex-col justify-between">
     <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-12 translate-x-12 blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
     

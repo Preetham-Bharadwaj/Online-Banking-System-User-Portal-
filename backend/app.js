@@ -6,14 +6,16 @@ const path = require('path');
 
 // Import routes
 const authRoutes = require('./routes/auth.routes');
-// const accountRoutes = require('./routes/account.routes');
+const bankingRoutes = require('./routes/banking.routes');
+const paymentRoutes = require('./routes/payment.routes');
+const adminRoutes = require('./routes/admin.routes');
 
 const app = express();
 
 // Security Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.VITE_API_URL || 'http://localhost:5173',
+  origin: '*', // For development, allow all origins
   credentials: true
 }));
 
@@ -33,17 +35,22 @@ app.get('/api/health', (req, res) => {
 });
 
 // API Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/v1/auth', authRoutes);
-// app.use('/api/v1/accounts', accountRoutes);
+app.use('/api/v1/banking', bankingRoutes);
+app.use('/api/v1/payments', paymentRoutes);
+app.use('/api/v1/admin', adminRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api', bankingRoutes);
+
+
 
 // Global Error Handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(err.status || 500).json({
-    error: {
-      message: err.message || 'Internal Server Error',
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-    }
+    error: err.message || 'Internal Server Error',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
   });
 });
 

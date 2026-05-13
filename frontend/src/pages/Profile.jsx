@@ -46,22 +46,35 @@ import {
 import { Link } from 'react-router-dom';
 
 import { useQR } from '../context/QRContext';
+import useStore from '../store/useStore';
 
 const Profile = () => {
   const { openScanner, openGenerator } = useQR();
+  const { user, accounts } = useStore();
   const [activeDetailModal, setActiveDetailModal] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const [profileData, setProfileData] = useState({
-    name: 'Alex Lee',
-    email: 'alex.lee@vertex.com',
-    phone: '+91 98765 43210',
-    address: '24th Avenue, Tech Park, Bengaluru, IN',
-    kycStatus: 'Verified',
-    accountType: 'Premium Savings',
-    joinedDate: 'Oct 2023'
-  });
+  // Derive real profile data from store
+  const activeAccount = accounts?.[0];
+  const joinedDate = user?.created_at
+    ? new Date(user.created_at).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+    : '—';
+  const initials = user?.full_name
+    ? user.full_name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+    : '?';
+
+  const profileData = {
+    name: user?.full_name || '—',
+    email: user?.email || '—',
+    phone: user?.phone_number ? `+91 ${user.phone_number.replace(/^91/, '').replace(/(\d{5})(\d{5})/, '$1 $2')}` : '—',
+    address: user?.address || '—',
+    kycStatus: user?.kyc_status === 'verified' ? 'Verified' : 'Pending',
+    accountType: activeAccount ? `${activeAccount.account_type.charAt(0).toUpperCase() + activeAccount.account_type.slice(1)} Account` : '—',
+    joinedDate,
+    upiId: activeAccount?.upi_id || '—',
+    accountNumber: activeAccount?.account_number || '—',
+  };
 
   const handleSaveProfile = (e) => {
     e.preventDefault();
@@ -109,7 +122,7 @@ const Profile = () => {
             <div className="flex flex-col md:flex-row items-center gap-10 relative z-10 text-center md:text-left">
                <div className="relative group/avatar">
                   <div className="w-28 h-28 lg:w-32 lg:h-32 rounded-[2.5rem] bg-gradient-to-br from-slate-800 to-slate-950 text-white flex items-center justify-center font-black text-4xl shadow-2xl border-4 border-white">
-                     AL
+                     {initials}
                   </div>
                   <motion.button 
                     whileHover={{ scale: 1.1 }}
@@ -125,7 +138,7 @@ const Profile = () => {
                         <h1 className="text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-none">{profileData.name}</h1>
                         <CheckCircle2 size={24} className="text-primary-600" />
                      </div>
-                     <p className="text-slate-400 font-bold text-[11px] uppercase tracking-widest">Premium Member • Joined {profileData.joinedDate}</p>
+                     <p className="text-slate-400 font-bold text-[11px] uppercase tracking-widest">{profileData.accountType} • Joined {profileData.joinedDate}</p>
                   </div>
 
                    <div className="flex flex-wrap justify-center md:justify-start gap-3">
@@ -276,12 +289,64 @@ const Profile = () => {
                        </div>
                        <div>
                           <h2 className="text-2xl font-black text-slate-900 tracking-tight">{activeDetailModal === 'Products' ? 'Banking Portfolio' : activeDetailModal === 'Nominee' ? 'Nominee Management' : 'Identity & Regulatory'}</h2>
-                          <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mt-1">Vertex Banking Ecosystem</p>
+                          <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mt-1">Finova Banking Ecosystem</p>
                        </div>
                     </div>
                     <button onClick={() => setActiveDetailModal(null)} className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-900 transition-colors"><X size={20} /></button>
                  </div>
                  <div className="p-10 overflow-y-auto no-scrollbar max-h-[70vh]">
+                    {activeDetailModal === 'Personal' && (
+                       <div className="space-y-4">
+                          {[
+                            { label: 'Full Name', value: profileData.name },
+                            { label: 'Date of Birth', value: user?.date_of_birth ? new Date(user.date_of_birth).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '—' },
+                            { label: 'Address', value: profileData.address },
+                            { label: 'Aadhaar Last 4', value: user?.aadhaar_last4 || 'Not provided' },
+                            { label: 'PAN Number', value: user?.pan_number || 'Not provided' },
+                            { label: 'KYC Status', value: profileData.kycStatus },
+                          ].map((item, idx) => (
+                             <div key={idx} className="p-5 bg-slate-50 rounded-2xl flex items-center justify-between border border-slate-100">
+                                <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{item.label}</p>
+                                <p className="font-black text-slate-900 text-sm">{item.value}</p>
+                             </div>
+                          ))}
+                       </div>
+                    )}
+                    {activeDetailModal === 'Communication' && (
+                       <div className="space-y-4">
+                          {[
+                            { label: 'Email Address', value: profileData.email },
+                            { label: 'Phone Number', value: profileData.phone },
+                            { label: 'UPI ID', value: profileData.upiId },
+                            { label: 'Account Number', value: profileData.accountNumber },
+                          ].map((item, idx) => (
+                             <div key={idx} className="p-5 bg-slate-50 rounded-2xl flex items-center justify-between border border-slate-100">
+                                <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{item.label}</p>
+                                <p className="font-black text-slate-900 text-sm">{item.value}</p>
+                             </div>
+                          ))}
+                       </div>
+                    )}
+                    {activeDetailModal === 'KYC' && (
+                       <div className="space-y-4">
+                          <div className={`p-5 rounded-2xl flex items-center gap-4 border ${user?.kyc_status === 'verified' ? 'bg-emerald-50 border-emerald-100' : 'bg-amber-50 border-amber-100'}`}>
+                             <ShieldCheck size={24} className={user?.kyc_status === 'verified' ? 'text-emerald-500' : 'text-amber-500'} />
+                             <div>
+                                <p className="font-black text-slate-900">KYC Status: {profileData.kycStatus}</p>
+                                <p className="text-[11px] font-bold text-slate-400 uppercase mt-1">{user?.kyc_status === 'verified' ? 'All documents verified' : 'Verification pending'}</p>
+                             </div>
+                          </div>
+                          {[
+                            { label: 'Aadhaar Last 4', value: user?.aadhaar_last4 || 'Not provided' },
+                            { label: 'PAN Number', value: user?.pan_number || 'Not provided' },
+                          ].map((item, idx) => (
+                             <div key={idx} className="p-5 bg-slate-50 rounded-2xl flex items-center justify-between border border-slate-100">
+                                <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{item.label}</p>
+                                <p className="font-black text-slate-900 text-sm">{item.value}</p>
+                             </div>
+                          ))}
+                       </div>
+                    )}
                     {activeDetailModal === 'Products' && (
                        <div className="space-y-8">
                           <div className="space-y-4">

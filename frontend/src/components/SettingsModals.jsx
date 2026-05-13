@@ -161,7 +161,7 @@ const SettingsModals = ({ isOpen, onClose, type }) => {
             <div className="p-6 bg-primary-50 rounded-2xl border border-primary-100 flex items-start gap-4">
                <Shield size={18} className="text-primary-600 shrink-0" />
                <p className="text-[11px] text-primary-900 font-bold leading-relaxed">
-                 Vertex only accesses these permissions when you use specific features. Your data is encrypted and never sold.
+                 Finova only accesses these permissions when you use specific features. Your data is encrypted and never sold.
                </p>
             </div>
           </div>
@@ -260,7 +260,7 @@ const SettingsModals = ({ isOpen, onClose, type }) => {
           <div className="px-8 py-6 border-b border-slate-50 flex items-center justify-between shrink-0 bg-white sticky top-0 z-10">
             <div>
               <h3 className="text-xl font-black text-slate-900 tracking-tight">{type}</h3>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Vertex System Preferences</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Finova System Preferences</p>
             </div>
             <button onClick={onClose} className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-900 transition-colors">
               <X size={20} />

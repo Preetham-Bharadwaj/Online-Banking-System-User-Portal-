@@ -157,7 +157,7 @@ const SettingsCenter = ({ isOpen, onClose, isMobile, initialCategory = 'Account'
                 </div>
                 <div>
                   <h2 className="text-2xl lg:text-3xl font-black text-slate-900 tracking-tight leading-none">Settings Hub</h2>
-                  <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mt-2">Manage your core Vertex account</p>
+                  <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mt-2">Manage your core Finova account</p>
                 </div>
               </div>
               <button 

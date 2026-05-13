@@ -11,25 +11,77 @@ import {
   ChevronRight,
   ArrowLeft
 } from 'lucide-react';
+import useStore from '../store/useStore';
+import authService from '../services/authService';
 
 const TransferFlow = ({ isOpen, onClose }) => {
-  const [step, setStep] = useState(1); // 1: Select Method/Beneficiary, 2: Amount & Note, 3: Success
-  const [method, setMethod] = useState(null); // 'upi', 'bank', 'contact'
+  const { platformUsers, user: currentUser, balance, setBankingData } = useStore();
+  const [step, setStep] = useState(1); 
+  const [method, setMethod] = useState(null); 
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
+  const [pin, setPin] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedRecipient, setSelectedRecipient] = useState(null);
 
-  const contacts = [
-    { id: 1, name: 'Sarah Jenkins', upi: 'sarah@okaxis', avatar: 'SJ', color: 'bg-blue-500' },
-    { id: 2, name: 'Michael Wong', upi: 'michael.w@okicici', avatar: 'MW', color: 'bg-indigo-500' },
-    { id: 3, name: 'Emma Davis', upi: 'emma.d@oksbi', avatar: 'ED', color: 'bg-emerald-500' },
-    { id: 4, name: 'Rahul Sharma', upi: 'rahul99@okaxis', avatar: 'RS', color: 'bg-rose-500' },
-  ];
+  const displayContacts = searchQuery.length > 1 ? searchResults : platformUsers.slice(0, 5);
 
-  const filteredContacts = contacts.filter(c => 
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    c.upi.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleTransfer = async () => {
+    if (!selectedRecipient || !amount || !pin) return;
+    
+    setLoading(true);
+    setError(null);
+
+    // Frontend balance check
+    if (parseFloat(amount) > balance) {
+      setError("Insufficient balance");
+      setLoading(false);
+      return;
+    }
+
+    try {
+
+      const response = await bankingService.upiTransfer({
+        receiverUpi: selectedRecipient.upi_id,
+        amount: parseFloat(amount),
+        pin: pin,
+        note: note
+      });
+
+      if (response.success || response.id) {
+        // Success
+        const updatedData = await bankingService.getDashboardData();
+        setBankingData(updatedData);
+        setStep(3);
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || "Transfer failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = async (query) => {
+    setSearchQuery(query);
+    if (query.length > 2) {
+      setIsSearching(true);
+      try {
+        const users = await authService.searchUsers(query);
+        setSearchResults(users);
+      } catch (err) {
+        console.error("Modal search failed:", err);
+      } finally {
+        setIsSearching(false);
+      }
+    } else {
+      setSearchResults([]);
+    }
+  };
+
 
   const resetFlow = () => {
     setStep(1);
@@ -99,7 +151,7 @@ const TransferFlow = ({ isOpen, onClose }) => {
                       type="text" 
                       placeholder="Search contacts, UPI ID or account..." 
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onChange={(e) => handleSearch(e.target.value)}
                       className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-500/5 text-sm font-bold text-slate-900 outline-none transition-all"
                     />
                   </div>
@@ -136,28 +188,36 @@ const TransferFlow = ({ isOpen, onClose }) => {
 
                   {/* Contacts */}
                   <div className="space-y-4">
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Recent Contacts</h4>
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{searchQuery ? 'Search Results' : 'Recent Contacts'}</h4>
                     <div className="space-y-2">
-                      {filteredContacts.map(contact => (
+                      {displayContacts.map(contact => (
                         <div 
                           key={contact.id}
-                          onClick={() => { setMethod('contact'); setStep(2); }}
+                          onClick={() => { 
+                            setMethod('contact'); 
+                            setSelectedRecipient(contact);
+                            setStep(2); 
+                          }}
                           className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-primary-200 hover:bg-slate-50 transition-all cursor-pointer group"
                         >
                           <div className="flex items-center gap-4">
-                            <div className={`w-10 h-10 ${contact.color} text-white rounded-xl flex items-center justify-center font-black text-xs shadow-sm group-hover:scale-110 transition-transform`}>
-                              {contact.avatar}
+                            <div className={`w-10 h-10 bg-primary-600 text-white rounded-xl flex items-center justify-center font-black text-xs shadow-sm group-hover:scale-110 transition-transform`}>
+                              {(contact.full_name || 'U').substring(0, 1).toUpperCase()}
                             </div>
                             <div>
-                              <p className="text-sm font-black text-slate-900">{contact.name}</p>
-                              <p className="text-[11px] font-bold text-slate-400">{contact.upi}</p>
+                              <p className="text-sm font-black text-slate-900">{contact.full_name}</p>
+                              <p className="text-[11px] font-bold text-slate-400">{contact.upi_id}</p>
                             </div>
                           </div>
                           <ChevronRight size={16} className="text-slate-300 group-hover:text-primary-600" />
                         </div>
                       ))}
+                      {searchQuery && displayContacts.length === 0 && !isSearching && (
+                        <p className="text-center text-[10px] font-bold text-slate-400 uppercase py-4">No users found</p>
+                      )}
                     </div>
                   </div>
+
                 </>
               )}
 
@@ -178,7 +238,7 @@ const TransferFlow = ({ isOpen, onClose }) => {
                       />
                     </div>
                     <div className="h-px w-32 bg-slate-100 mx-auto" />
-                    <p className="text-[11px] font-bold text-slate-400">Available: <span className="text-slate-900">₹24,56,000</span></p>
+                    <p className="text-[11px] font-bold text-slate-400">Available: <span className="text-slate-900">₹{Number(balance || 0).toLocaleString()}</span></p>
                   </div>
 
                   {/* Note Input */}
@@ -197,7 +257,7 @@ const TransferFlow = ({ isOpen, onClose }) => {
                   <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sending to</span>
-                      <span className="text-xs font-black text-slate-900">Sarah Jenkins</span>
+                      <span className="text-xs font-black text-slate-900">{selectedRecipient?.full_name || 'Recipient'}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Method</span>
@@ -205,13 +265,32 @@ const TransferFlow = ({ isOpen, onClose }) => {
                     </div>
                   </div>
 
+                  {/* PIN Input for Step 2 */}
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Enter 6-digit UPI PIN</label>
+                    <input 
+                      type="password" 
+                      maxLength={6}
+                      placeholder="••••••" 
+                      value={pin}
+                      onChange={(e) => setPin(e.target.value)}
+                      className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-center text-2xl tracking-[1em] font-black text-slate-900 outline-none focus:bg-white focus:border-primary-500 transition-all"
+                    />
+                  </div>
+
+                  {error && (
+                    <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl text-rose-600 text-[11px] font-bold text-center">
+                      {error}
+                    </div>
+                  )}
+
                   <button 
-                    onClick={() => setStep(3)}
-                    disabled={!amount || parseFloat(amount) <= 0}
+                    onClick={handleTransfer}
+                    disabled={loading || !amount || !pin || pin.length < 6}
                     className="w-full py-5 bg-primary-600 text-white rounded-[1.5rem] font-black text-[12px] uppercase tracking-[0.2em] shadow-xl shadow-primary-200 hover:bg-primary-700 disabled:opacity-50 disabled:shadow-none transition-all flex items-center justify-center gap-3 mt-4"
                   >
-                    Confirm Transfer
-                    <ArrowRight size={18} />
+                    {loading ? 'Processing...' : 'Confirm Transfer'}
+                    {!loading && <ArrowRight size={18} />}
                   </button>
                 </div>
               )}
@@ -231,8 +310,9 @@ const TransferFlow = ({ isOpen, onClose }) => {
                   
                   <div className="space-y-2">
                     <h4 className="text-2xl font-black text-slate-900 tracking-tight">₹{parseFloat(amount).toLocaleString()} Sent!</h4>
-                    <p className="text-sm font-bold text-slate-500">Successfully transferred to Sarah Jenkins</p>
+                    <p className="text-sm font-bold text-slate-500">Successfully transferred to {selectedRecipient?.full_name}</p>
                   </div>
+
 
                   <div className="bg-slate-50 p-6 rounded-3xl space-y-4">
                     <div className="flex justify-between text-[11px] font-bold">

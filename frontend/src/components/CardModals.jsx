@@ -344,7 +344,7 @@ const CardModals = ({ isOpen, onClose, type, card }) => {
           <div className="px-8 py-6 border-b border-slate-50 flex items-center justify-between shrink-0 bg-white sticky top-0 z-10">
             <div>
               <h3 className="text-xl font-black text-slate-900 tracking-tight">{type}</h3>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Vertex Card Engine</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Finova Card Engine</p>
             </div>
             <button onClick={resetModal} className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-900 transition-colors">
               <X size={20} />

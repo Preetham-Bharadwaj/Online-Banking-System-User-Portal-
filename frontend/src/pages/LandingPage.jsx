@@ -1,14 +1,14 @@
 import { Link } from 'react-router-dom';
-import { 
-  ShieldCheck, 
-  Zap, 
-  PieChart, 
-  TrendingUp, 
-  CreditCard, 
-  Bell, 
-  Smartphone, 
-  Lock, 
-  CheckCircle2, 
+import {
+  ShieldCheck,
+  Zap,
+  PieChart,
+  TrendingUp,
+  CreditCard,
+  Bell,
+  Smartphone,
+  Lock,
+  CheckCircle2,
   ArrowRight,
   Menu,
   X,
@@ -39,11 +39,9 @@ const LandingPage = () => {
       {/* 1. Navbar */}
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'bg-white/80 backdrop-blur-md shadow-sm py-3' : 'bg-transparent py-5'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-primary-600 font-bold text-2xl">
-            <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-primary-200">
-              <span className="text-lg">V</span>
-            </div>
-            Vertex Bank
+          <div className="flex items-center gap-3 text-primary-600 font-bold text-2xl">
+            <img src="/logo.png" alt="Finova Logo" className="h-14 w-auto object-contain" />
+            Finova Bank
           </div>
 
           <div className="hidden md:flex items-center gap-8">
@@ -93,7 +91,7 @@ const LandingPage = () => {
               <Zap size={14} /> Coming Soon: The Future of Banking
             </div>
             <h1 className="text-5xl lg:text-7xl font-extrabold text-slate-900 leading-[1.1] tracking-tight">
-              Smart Banking for <br/>
+              Smart Banking for <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-blue-500">
                 The Digital Age.
               </span>
@@ -116,65 +114,65 @@ const LandingPage = () => {
 
           <div className="flex-1 relative">
             <div className="relative z-10 animate-float">
-               {/* Dummy Dashboard UI Preview */}
-               <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 p-4 transform lg:rotate-2 hover:rotate-0 transition-transform duration-700">
-                  <div className="flex justify-between items-center mb-6">
-                    <div className="flex gap-2">
-                      <div className="w-3 h-3 rounded-full bg-red-400"></div>
-                      <div className="w-3 h-3 rounded-full bg-amber-400"></div>
-                      <div className="w-3 h-3 rounded-full bg-emerald-400"></div>
-                    </div>
-                    <div className="h-2 w-32 bg-slate-100 rounded-full"></div>
+              {/* Dummy Dashboard UI Preview */}
+              <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 p-4 transform lg:rotate-2 hover:rotate-0 transition-transform duration-700">
+                <div className="flex justify-between items-center mb-6">
+                  <div className="flex gap-2">
+                    <div className="w-3 h-3 rounded-full bg-red-400"></div>
+                    <div className="w-3 h-3 rounded-full bg-amber-400"></div>
+                    <div className="w-3 h-3 rounded-full bg-emerald-400"></div>
                   </div>
-                  <div className="space-y-4">
-                    <div className="h-40 bg-gradient-to-br from-primary-600 to-primary-800 rounded-2xl p-6 text-white">
-                      <p className="text-xs opacity-80">Total Balance</p>
-                      <p className="text-3xl font-bold mt-1">₹4,25,600.00</p>
-                      <div className="mt-8 flex justify-between items-end">
-                        <p className="font-mono tracking-widest text-sm">**** **** **** 8821</p>
-                        <div className="flex -space-x-2">
-                          <div className="w-6 h-6 rounded-full bg-white/20"></div>
-                          <div className="w-6 h-6 rounded-full bg-white/20"></div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="h-20 bg-emerald-50 rounded-2xl p-4">
-                        <p className="text-[10px] text-emerald-600 font-bold uppercase">Monthly Income</p>
-                        <p className="text-lg font-bold text-slate-900">₹85,000</p>
-                      </div>
-                      <div className="h-20 bg-rose-50 rounded-2xl p-4">
-                        <p className="text-[10px] text-rose-600 font-bold uppercase">Monthly Spent</p>
-                        <p className="text-lg font-bold text-slate-900">₹32,400</p>
+                  <div className="h-2 w-32 bg-slate-100 rounded-full"></div>
+                </div>
+                <div className="space-y-4">
+                  <div className="h-40 bg-gradient-to-br from-primary-600 to-primary-800 rounded-2xl p-6 text-white">
+                    <p className="text-xs opacity-80">Total Balance</p>
+                    <p className="text-3xl font-bold mt-1">₹4,25,600.00</p>
+                    <div className="mt-8 flex justify-between items-end">
+                      <p className="font-mono tracking-widest text-sm">**** **** **** 8821</p>
+                      <div className="flex -space-x-2">
+                        <div className="w-6 h-6 rounded-full bg-white/20"></div>
+                        <div className="w-6 h-6 rounded-full bg-white/20"></div>
                       </div>
                     </div>
                   </div>
-               </div>
-               
-               {/* Small floating badges */}
-               <div className="absolute -top-6 -right-6 bg-white p-4 rounded-2xl shadow-xl border border-slate-100 animate-pulse delay-700">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">
-                      <Zap size={20} />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="h-20 bg-emerald-50 rounded-2xl p-4">
+                      <p className="text-[10px] text-emerald-600 font-bold uppercase">Monthly Income</p>
+                      <p className="text-lg font-bold text-slate-900">₹85,000</p>
                     </div>
-                    <div>
-                      <p className="text-xs text-slate-500">Instant Transfer</p>
-                      <p className="text-sm font-bold text-slate-900">Success!</p>
+                    <div className="h-20 bg-rose-50 rounded-2xl p-4">
+                      <p className="text-[10px] text-rose-600 font-bold uppercase">Monthly Spent</p>
+                      <p className="text-lg font-bold text-slate-900">₹32,400</p>
                     </div>
                   </div>
-               </div>
-               
-               <div className="absolute -bottom-6 -left-6 bg-white p-4 rounded-2xl shadow-xl border border-slate-100 animate-bounce">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center text-primary-600">
-                      <PieChart size={20} />
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500">Savings Goal</p>
-                      <p className="text-sm font-bold text-slate-900">85% Completed</p>
-                    </div>
+                </div>
+              </div>
+
+              {/* Small floating badges */}
+              <div className="absolute -top-6 -right-6 bg-white p-4 rounded-2xl shadow-xl border border-slate-100 animate-pulse delay-700">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">
+                    <Zap size={20} />
                   </div>
-               </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Instant Transfer</p>
+                    <p className="text-sm font-bold text-slate-900">Success!</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="absolute -bottom-6 -left-6 bg-white p-4 rounded-2xl shadow-xl border border-slate-100 animate-bounce">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center text-primary-600">
+                    <PieChart size={20} />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Savings Goal</p>
+                    <p className="text-sm font-bold text-slate-900">85% Completed</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -248,7 +246,7 @@ const LandingPage = () => {
           <div className="flex flex-col lg:flex-row items-center gap-16">
             <div className="flex-1 space-y-8">
               <h3 className="text-4xl lg:text-5xl font-extrabold leading-tight">
-                Watch your money <br/>
+                Watch your money <br />
                 <span className="text-primary-400">grow with intelligence.</span>
               </h3>
               <div className="space-y-6">
@@ -271,26 +269,26 @@ const LandingPage = () => {
             </div>
             <div className="flex-1 w-full">
               <div className="bg-slate-800 rounded-3xl p-8 border border-slate-700 shadow-2xl relative">
-                 <div className="flex justify-between items-center mb-8">
-                    <p className="font-bold">Spending Overview</p>
-                    <div className="px-3 py-1 bg-slate-700 rounded-lg text-xs">Last 30 Days</div>
-                 </div>
-                 {/* Dummy Chart Mockup */}
-                 <div className="flex items-end gap-3 h-48 mb-8">
-                    {[40, 65, 35, 85, 55, 95, 75].map((h, i) => (
-                      <div key={i} className="flex-1 bg-primary-500 rounded-t-lg transition-all duration-1000" style={{ height: `${h}%` }}></div>
-                    ))}
-                 </div>
-                 <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-slate-700/50 rounded-2xl">
-                       <p className="text-xs text-slate-400">Top Category</p>
-                       <p className="font-bold text-primary-400 mt-1">Dining & Lifestyle</p>
-                    </div>
-                    <div className="p-4 bg-slate-700/50 rounded-2xl">
-                       <p className="text-xs text-slate-400">Potential Savings</p>
-                       <p className="font-bold text-emerald-400 mt-1">₹12,400 / mo</p>
-                    </div>
-                 </div>
+                <div className="flex justify-between items-center mb-8">
+                  <p className="font-bold">Spending Overview</p>
+                  <div className="px-3 py-1 bg-slate-700 rounded-lg text-xs">Last 30 Days</div>
+                </div>
+                {/* Dummy Chart Mockup */}
+                <div className="flex items-end gap-3 h-48 mb-8">
+                  {[40, 65, 35, 85, 55, 95, 75].map((h, i) => (
+                    <div key={i} className="flex-1 bg-primary-500 rounded-t-lg transition-all duration-1000" style={{ height: `${h}%` }}></div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-slate-700/50 rounded-2xl">
+                    <p className="text-xs text-slate-400">Top Category</p>
+                    <p className="font-bold text-primary-400 mt-1">Dining & Lifestyle</p>
+                  </div>
+                  <div className="p-4 bg-slate-700/50 rounded-2xl">
+                    <p className="text-xs text-slate-400">Potential Savings</p>
+                    <p className="font-bold text-emerald-400 mt-1">₹12,400 / mo</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -302,45 +300,45 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto">
           <div className="bg-primary-600 rounded-[3rem] p-8 lg:p-20 text-white relative overflow-hidden shadow-2xl">
             <div className="absolute bottom-0 right-0 w-96 h-96 bg-white/10 rounded-full translate-y-1/2 translate-x-1/2 blur-3xl"></div>
-            
+
             <div className="flex flex-col lg:flex-row items-center gap-16 relative z-10">
               <div className="flex-1 space-y-6">
                 <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 rounded-full text-xs font-bold uppercase tracking-widest">
                   <ShieldCheck size={14} /> Security First
                 </div>
                 <h3 className="text-4xl lg:text-5xl font-extrabold leading-tight">
-                  Your security is our <br/> highest priority.
+                  Your security is our <br /> highest priority.
                 </h3>
                 <p className="text-lg text-primary-100 leading-relaxed">
                   We use the same encryption standards as top global financial institutions. Your money and data are always protected.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
-                   <div className="flex items-center gap-3">
-                      <Lock className="text-primary-300" />
-                      <span className="font-bold">AES-256 Encryption</span>
-                   </div>
-                   <div className="flex items-center gap-3">
-                      <Smartphone className="text-primary-300" />
-                      <span className="font-bold">Multi-factor Auth</span>
-                   </div>
-                   <div className="flex items-center gap-3">
-                      <CheckCircle2 className="text-primary-300" />
-                      <span className="font-bold">RBI Compliant</span>
-                   </div>
-                   <div className="flex items-center gap-3">
-                      <Eye className="text-primary-300" />
-                      <span className="font-bold">Fraud Monitoring</span>
-                   </div>
+                  <div className="flex items-center gap-3">
+                    <Lock className="text-primary-300" />
+                    <span className="font-bold">AES-256 Encryption</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Smartphone className="text-primary-300" />
+                    <span className="font-bold">Multi-factor Auth</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className="text-primary-300" />
+                    <span className="font-bold">RBI Compliant</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Eye className="text-primary-300" />
+                    <span className="font-bold">Fraud Monitoring</span>
+                  </div>
                 </div>
               </div>
               <div className="flex-1 flex justify-center">
-                 <div className="w-64 h-64 lg:w-80 lg:h-80 relative">
-                    <div className="absolute inset-0 bg-white/20 rounded-full animate-ping"></div>
-                    <div className="absolute inset-4 bg-white/20 rounded-full"></div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                       <Shield size={120} className="text-white drop-shadow-2xl" />
-                    </div>
-                 </div>
+                <div className="w-64 h-64 lg:w-80 lg:h-80 relative">
+                  <div className="absolute inset-0 bg-white/20 rounded-full animate-ping"></div>
+                  <div className="absolute inset-4 bg-white/20 rounded-full"></div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Shield size={120} className="text-white drop-shadow-2xl" />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -351,7 +349,7 @@ const LandingPage = () => {
       <section className="py-32 px-4 bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-20">
-             <h2 className="text-4xl font-extrabold text-slate-900">Start your journey in minutes.</h2>
+            <h2 className="text-4xl font-extrabold text-slate-900">Start your journey in minutes.</h2>
           </div>
           <div className="flex md:grid overflow-x-auto md:overflow-visible no-scrollbar snap-x snap-mandatory md:snap-none md:grid-cols-4 gap-6 md:gap-12 pb-8 md:pb-0">
             {[
@@ -384,23 +382,23 @@ const LandingPage = () => {
           </div>
           <div className="flex md:grid overflow-x-auto md:overflow-visible no-scrollbar snap-x snap-mandatory md:snap-none md:grid-cols-3 gap-6 md:gap-8 pb-8 md:pb-0">
             {[
-              { name: "Rahul Sharma", role: "Student, IIT Bombay", quote: "As a student, tracking expenses was a nightmare. Vertex changed that with its smart categorisation and zero hidden charges.", avatar: "RS" },
+              { name: "Rahul Sharma", role: "Student, IIT Bombay", quote: "As a student, tracking expenses was a nightmare. Finova changed that with its smart categorisation and zero hidden charges.", avatar: "RS" },
               { name: "Priya Varma", role: "Software Engineer", quote: "The interface is beautiful and the instant UPI transfers are actually instant. It's the only banking app I enjoy using.", avatar: "PV" },
               { name: "Amit Goel", role: "Small Business Owner", quote: "Managing my business expenses and personal savings in one place with such deep analytics has been a game changer for me.", avatar: "AG" }
             ].map((item, i) => (
               <div key={i} className="flex-none w-[85vw] md:w-auto snap-center bg-white p-8 rounded-3xl shadow-sm border border-slate-100 hover:shadow-md transition-all">
                 <div className="flex text-amber-400 gap-1 mb-4">
-                   {[...Array(5)].map((_, j) => <CheckCircle2 size={16} key={j} className="fill-current" />)}
+                  {[...Array(5)].map((_, j) => <CheckCircle2 size={16} key={j} className="fill-current" />)}
                 </div>
                 <p className="text-slate-700 italic mb-8">"{item.quote}"</p>
                 <div className="flex items-center gap-4">
-                   <div className="w-12 h-12 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center font-bold">
-                      {item.avatar}
-                   </div>
-                   <div>
-                      <p className="font-bold text-slate-900">{item.name}</p>
-                      <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">{item.role}</p>
-                   </div>
+                  <div className="w-12 h-12 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center font-bold">
+                    {item.avatar}
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-900">{item.name}</p>
+                    <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">{item.role}</p>
+                  </div>
                 </div>
               </div>
             ))}
@@ -420,16 +418,16 @@ const LandingPage = () => {
               { q: "How secure is my money?", a: "Your money is protected by bank-grade AES-256 encryption and multi-factor authentication. We are also fully RBI compliant and partner with scheduled commercial banks." },
               { q: "Is the KYC process entirely digital?", a: "Yes, our KYC process is 100% paperless and digital. It usually takes less than 5 minutes to complete using your mobile app." },
               { q: "Are there any hidden charges?", a: "None at all. We believe in transparent banking. All our charges are clearly mentioned in our schedule of charges available on the app." },
-              { q: "Can I use UPI for all transfers?", a: "Yes, Vertex Bank supports UPI, IMPS, NEFT, and RTGS, giving you the flexibility to transfer money however you like." }
+              { q: "Can I use UPI for all transfers?", a: "Yes, Finova Bank supports UPI, IMPS, NEFT, and RTGS, giving you the flexibility to transfer money however you like." }
             ].map((faq, i) => (
               <details key={i} className="group border border-slate-100 rounded-2xl bg-white hover:bg-slate-50 transition-all cursor-pointer overflow-hidden">
-                 <summary className="flex items-center justify-between p-6 list-none [&::-webkit-details-marker]:hidden">
-                    <h4 className="font-bold text-slate-900">{faq.q}</h4>
-                    <ChevronDown size={20} className="text-slate-400 group-open:rotate-180 transition-transform duration-300" />
-                 </summary>
-                 <div className="px-6 pb-6 text-slate-600 text-sm leading-relaxed animate-fadeIn">
-                    {faq.a}
-                 </div>
+                <summary className="flex items-center justify-between p-6 list-none [&::-webkit-details-marker]:hidden">
+                  <h4 className="font-bold text-slate-900">{faq.q}</h4>
+                  <ChevronDown size={20} className="text-slate-400 group-open:rotate-180 transition-transform duration-300" />
+                </summary>
+                <div className="px-6 pb-6 text-slate-600 text-sm leading-relaxed animate-fadeIn">
+                  {faq.a}
+                </div>
               </details>
             ))}
           </div>
@@ -441,40 +439,40 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col lg:flex-row items-center gap-20">
             <div className="flex-1 relative">
-               <div className="w-full aspect-square bg-primary-100 rounded-[3rem] overflow-hidden relative">
-                  <div className="absolute inset-0 bg-gradient-to-tr from-primary-600/20 to-transparent"></div>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                     <div className="text-center p-12">
-                        <p className="text-7xl font-black text-primary-600/10 mb-4">SINCE 2024</p>
-                        <h4 className="text-3xl font-bold text-slate-800">Mission Driven. <br/> Tech Powered.</h4>
-                     </div>
+              <div className="w-full aspect-square bg-primary-100 rounded-[3rem] overflow-hidden relative">
+                <div className="absolute inset-0 bg-gradient-to-tr from-primary-600/20 to-transparent"></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-center p-12">
+                    <p className="text-7xl font-black text-primary-600/10 mb-4">SINCE 2024</p>
+                    <h4 className="text-3xl font-bold text-slate-800">Mission Driven. <br /> Tech Powered.</h4>
                   </div>
-               </div>
-               {/* Floating elements for visual interest */}
-               <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-100 rounded-full blur-3xl opacity-50"></div>
+                </div>
+              </div>
+              {/* Floating elements for visual interest */}
+              <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-100 rounded-full blur-3xl opacity-50"></div>
             </div>
             <div className="flex-1 space-y-8">
-              <h2 className="text-primary-600 font-bold uppercase tracking-widest text-sm">About Vertex</h2>
+              <h2 className="text-primary-600 font-bold uppercase tracking-widest text-sm">About Finova</h2>
               <h3 className="text-4xl lg:text-5xl font-extrabold text-slate-900 leading-tight">We're on a mission to democratize modern banking for free.</h3>
               <p className="text-lg text-slate-600 leading-relaxed">
-                At Vertex, we believe that everyone deserves access to world-class financial tools. We're building a banking experience that isn't just about storing money, but about helping you understand and grow it.
+                At Finova, we believe that everyone deserves access to world-class financial tools. We're building a banking experience that isn't just about storing money, but about helping you understand and grow it.
               </p>
               <div className="grid grid-cols-2 gap-8">
                 <div>
-                   <p className="text-3xl font-black text-slate-900">100%</p>
-                   <p className="text-sm text-slate-500 font-medium uppercase tracking-wider">Free Forever</p>
+                  <p className="text-3xl font-black text-slate-900">100%</p>
+                  <p className="text-sm text-slate-500 font-medium uppercase tracking-wider">Free Forever</p>
                 </div>
                 <div>
-                   <p className="text-3xl font-black text-slate-900">₹0</p>
-                   <p className="text-sm text-slate-500 font-medium uppercase tracking-wider">Min Balance</p>
+                  <p className="text-3xl font-black text-slate-900">₹0</p>
+                  <p className="text-sm text-slate-500 font-medium uppercase tracking-wider">Min Balance</p>
                 </div>
                 <div>
-                   <p className="text-3xl font-black text-slate-900">Bengaluru</p>
-                   <p className="text-sm text-slate-500 font-medium uppercase tracking-wider">Made In</p>
+                  <p className="text-3xl font-black text-slate-900">Bengaluru</p>
+                  <p className="text-sm text-slate-500 font-medium uppercase tracking-wider">Made In</p>
                 </div>
                 <div>
-                   <p className="text-3xl font-black text-slate-900">24/7</p>
-                   <p className="text-sm text-slate-500 font-medium uppercase tracking-wider">Security</p>
+                  <p className="text-3xl font-black text-slate-900">24/7</p>
+                  <p className="text-sm text-slate-500 font-medium uppercase tracking-wider">Security</p>
                 </div>
               </div>
             </div>
@@ -485,23 +483,23 @@ const LandingPage = () => {
       {/* 10. CTA Section */}
       <section className="py-20 px-4">
         <div className="max-w-7xl mx-auto text-center bg-gradient-to-br from-primary-700 to-blue-900 rounded-[3rem] p-12 lg:p-24 text-white relative overflow-hidden">
-           <div className="absolute top-0 left-0 w-64 h-64 bg-white/10 rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl"></div>
-           <div className="relative z-10 space-y-8">
-              <h2 className="text-4xl lg:text-6xl font-extrabold leading-tight">
-                 Ready to upgrade <br/> your banking?
-              </h2>
-              <p className="text-xl text-primary-100 max-w-2xl mx-auto">
-                 Be among the first smart users to experience Vertex. Open your free account in less than 5 minutes.
-              </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link to="/register" className="w-full sm:w-auto px-10 py-5 bg-white text-primary-700 font-black rounded-2xl shadow-2xl transition-all hover:scale-105">
-                   Get Started Now
-                </Link>
-                <Link to="/login" className="w-full sm:w-auto px-10 py-5 bg-primary-600/50 backdrop-blur-md border border-white/20 text-white font-bold rounded-2xl transition-all hover:bg-primary-600">
-                   Sign In to Portal
-                </Link>
-              </div>
-           </div>
+          <div className="absolute top-0 left-0 w-64 h-64 bg-white/10 rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl"></div>
+          <div className="relative z-10 space-y-8">
+            <h2 className="text-4xl lg:text-6xl font-extrabold leading-tight">
+              Ready to upgrade <br /> your banking?
+            </h2>
+            <p className="text-xl text-primary-100 max-w-2xl mx-auto">
+              Be among the first smart users to experience Finova. Open your free account in less than 5 minutes.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link to="/register" className="w-full sm:w-auto px-10 py-5 bg-white text-primary-700 font-black rounded-2xl shadow-2xl transition-all hover:scale-105">
+                Get Started Now
+              </Link>
+              <Link to="/login" className="w-full sm:w-auto px-10 py-5 bg-primary-600/50 backdrop-blur-md border border-white/20 text-white font-bold rounded-2xl transition-all hover:bg-primary-600">
+                Sign In to Portal
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -510,11 +508,9 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-5 gap-8 md:gap-12 mb-10 md:mb-20">
             <div className="col-span-2 space-y-4 md:space-y-6">
-              <div className="flex items-center gap-2 text-primary-600 font-bold text-xl md:text-2xl">
-                <div className="w-6 h-6 md:w-8 md:h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white">
-                  <span className="text-xs md:text-sm">V</span>
-                </div>
-                Vertex Bank
+              <div className="flex items-center gap-3 text-primary-600 font-bold text-xl md:text-2xl">
+                <img src="/logo.png" alt="Finova Logo" className="h-10 w-auto object-contain" />
+                Finova Bank
               </div>
               <p className="text-slate-500 text-xs md:text-sm leading-relaxed max-w-xs">
                 The modern banking platform designed for India's digital future. Safe, smart, and stunningly simple.
@@ -553,15 +549,15 @@ const LandingPage = () => {
             </div>
           </div>
           <div className="border-t border-slate-100 pt-6 flex flex-col md:flex-row items-center justify-between gap-2 md:gap-4 text-slate-400 text-[10px] md:text-xs text-center md:text-left">
-            <p>© 2026 Vertex Bank.</p>
+            <p>© 2026 Finova Bank.</p>
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-6">
-               <p>Powered by Partner Banks.</p>
-               <p>RBI Registered.</p>
+              <p>Powered by Partner Banks.</p>
+              <p>RBI Registered.</p>
             </div>
           </div>
         </div>
       </footer>
-      
+
       {/* Important Note for the user */}
       <div className="hidden">
         This landing page is displayed before user authentication/login/signup pages.

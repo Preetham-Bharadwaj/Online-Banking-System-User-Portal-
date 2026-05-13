@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
@@ -13,80 +13,26 @@ import {
   CreditCard, 
   TrendingUp, 
   Gift, 
-  CircleAlert
 } from 'lucide-react';
-
-const mockNotifications = [
-  {
-    id: 1,
-    type: 'payment_received',
-    title: 'Money Received',
-    description: '₹12,500 received from Rahul Sharma',
-    time: '2 mins ago',
-    date: 'Today',
-    isRead: false,
-    icon: <ArrowDownLeft size={16} className="text-emerald-600" />,
-    color: 'bg-emerald-50'
-  },
-  {
-    id: 2,
-    type: 'payment_debited',
-    title: 'Subscription Paid',
-    description: '₹1,299 debited for Netflix Premium',
-    time: '2 hours ago',
-    date: 'Today',
-    isRead: false,
-    icon: <ArrowUpRight size={16} className="text-rose-600" />,
-    color: 'bg-rose-50'
-  },
-  {
-    id: 3,
-    type: 'security_alert',
-    title: 'Security Alert',
-    description: 'New login detected from Bengaluru, IN',
-    time: '5 hours ago',
-    date: 'Today',
-    isRead: true,
-    icon: <ShieldAlert size={16} className="text-amber-600" />,
-    color: 'bg-amber-50'
-  },
-  {
-    id: 4,
-    type: 'spending_insight',
-    title: 'Spending Insight',
-    description: 'Food & Dining spending is 12% higher than usual',
-    time: 'Yesterday',
-    date: 'Yesterday',
-    isRead: true,
-    icon: <TrendingUp size={16} className="text-indigo-600" />,
-    color: 'bg-indigo-50'
-  },
-  {
-    id: 5,
-    type: 'cashback',
-    title: 'Cashback Earned',
-    description: 'Congratulations! ₹250 cashback credited to your wallet',
-    time: 'Yesterday',
-    date: 'Yesterday',
-    isRead: true,
-    icon: <Gift size={16} className="text-primary-600" />,
-    color: 'bg-primary-50'
-  },
-  {
-    id: 6,
-    type: 'bill_reminder',
-    title: 'Bill Reminder',
-    description: 'Airtel Broadband bill is due in 2 days',
-    time: '2 days ago',
-    date: 'Earlier',
-    isRead: true,
-    icon: <Clock size={16} className="text-slate-600" />,
-    color: 'bg-slate-50'
-  }
-];
+import useStore from '../store/useStore';
 
 const NotificationCenter = ({ isOpen, onClose, isMobile }) => {
-  const [notifications, setNotifications] = useState(mockNotifications);
+  const { notifications: storeNotifications } = useStore();
+  const [notifications, setNotifications] = useState([]);
+
+  useEffect(() => {
+    setNotifications(storeNotifications.map((notification) => ({
+      id: notification.id,
+      type: notification.notification_type || 'alert',
+      title: notification.title,
+      description: notification.message,
+      time: notification.created_at ? new Date(notification.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+      date: notification.created_at ? new Date(notification.created_at).toLocaleDateString() : 'Recent',
+      isRead: notification.is_read,
+      icon: <Bell size={16} className="text-primary-600" />,
+      color: 'bg-primary-50'
+    })));
+  }, [storeNotifications]);
 
   const markAllAsRead = () => {
     setNotifications(notifications.map(n => ({ ...n, isRead: true })));

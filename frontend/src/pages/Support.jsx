@@ -32,7 +32,7 @@ const Support = () => {
       items: [
         { id: 'Chat', icon: MessageCircle, label: "Live Chat Support", desc: "Typical response time: < 2 mins", status: "Online" },
         { id: 'Call', icon: Phone, label: "Voice Support", desc: "Available 24/7 for urgent issues" },
-        { id: 'Email', icon: Mail, label: "Email Support", desc: "support@vertex.bank" },
+        { id: 'Email', icon: Mail, label: "Email Support", desc: "support@finova.bank" },
       ]
     },
     {
@@ -112,7 +112,7 @@ const Support = () => {
                <h3 className="font-black text-slate-400 uppercase tracking-widest text-[9px] px-2">Your Support Tickets</h3>
                <div className="space-y-4">
                   <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 relative overflow-hidden group hover:border-primary-200 transition-all">
-                     <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest mb-1">Ticket #VRX-8291</p>
+                     <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest mb-1">Ticket #FNV-8291</p>
                      <p className="font-black text-slate-900 text-sm">Failed Card Transaction</p>
                      <div className="flex justify-between items-center mt-4">
                         <span className="text-[9px] font-black text-amber-600 uppercase tracking-widest bg-amber-50 px-2 py-1 rounded">In Progress</span>

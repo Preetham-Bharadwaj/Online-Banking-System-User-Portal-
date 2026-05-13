@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { bankingService } from '../services/bankingService';
 import { 
   Shield, 
   Smartphone, 
@@ -20,6 +21,9 @@ import {
 
 const Security = () => {
   const [activeModal, setActiveModal] = useState(null);
+  const [upiPin, setUpiPin] = useState('');
+  const [isSettingPin, setIsSettingPin] = useState(false);
+  const [message, setMessage] = useState(null);
 
   const securitySections = [
     {
@@ -42,8 +46,28 @@ const Security = () => {
       items: [
         { id: 'Freeze', icon: AlertTriangle, label: "Freeze Account", desc: "Instantly disable all transactions", status: null, danger: true },
       ]
+    },
+    {
+      title: "Payment Security",
+      items: [
+        { id: 'UPIPIN', icon: Shield, label: "UPI PIN", desc: "Manage your 6-digit payment PIN", status: "Required" },
+      ]
     }
   ];
+
+  const handleSetPin = async () => {
+    setIsSettingPin(true);
+    setMessage(null);
+    try {
+      await bankingService.setupPin(upiPin);
+      setMessage({ type: 'success', text: 'UPI PIN set successfully!' });
+      setTimeout(() => setActiveModal(null), 2000);
+    } catch (err) {
+      setMessage({ type: 'error', text: err.response?.data?.error || 'Failed to set PIN' });
+    } finally {
+      setIsSettingPin(false);
+    }
+  };
 
   return (
     <div className="max-w-[1200px] mx-auto px-6 lg:px-12 pb-24 pt-6 space-y-8 animate-fadeIn">
@@ -148,7 +172,47 @@ const Security = () => {
 
       {/* Modals Placeholder */}
       <AnimatePresence>
-        {activeModal && (
+        {activeModal === 'UPIPIN' ? (
+           <div className="fixed inset-0 z-[130] flex items-center justify-center p-0 lg:p-4">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setActiveModal(null)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" />
+              <motion.div initial={{ opacity: 0, scale: 0.95, y: 50 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 50 }} className="relative w-full h-full lg:h-auto lg:max-w-md bg-white rounded-t-[2.5rem] lg:rounded-[2.5rem] shadow-2xl p-10 flex flex-col items-center text-center space-y-6" >
+                 <div className="w-20 h-20 bg-primary-50 rounded-[2rem] flex items-center justify-center text-primary-600">
+                    <Shield size={40} />
+                 </div>
+                 <div>
+                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">Set UPI PIN</h2>
+                    <p className="text-slate-400 font-bold text-[11px] uppercase tracking-widest mt-2">Required for all transactions</p>
+                 </div>
+                 
+                 <div className="w-full space-y-4">
+                    <input 
+                      type="password"
+                      maxLength="6"
+                      placeholder="Enter 6-digit PIN"
+                      value={upiPin}
+                      onChange={(e) => setUpiPin(e.target.value)}
+                      className="w-full px-6 py-5 bg-slate-50 border-2 border-slate-100 focus:border-primary-500/20 focus:bg-white rounded-2xl text-center text-2xl font-black tracking-[0.5em] outline-none transition-all"
+                    />
+                    {message && (
+                      <p className={`text-[10px] font-bold uppercase tracking-widest ${message.type === 'success' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        {message.text}
+                      </p>
+                    )}
+                 </div>
+
+                 <div className="w-full space-y-3">
+                    <button 
+                      onClick={handleSetPin} 
+                      disabled={isSettingPin || upiPin.length < 4}
+                      className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl hover:bg-primary-600 disabled:bg-slate-100 disabled:text-slate-400 transition-all"
+                    >
+                       {isSettingPin ? 'Setting PIN...' : 'Save UPI PIN'}
+                    </button>
+                    <button onClick={() => setActiveModal(null)} className="w-full py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Cancel</button>
+                 </div>
+              </motion.div>
+           </div>
+        ) : activeModal && (
            <div className="fixed inset-0 z-[130] flex items-center justify-center p-0 lg:p-4">
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setActiveModal(null)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" />
               <motion.div initial={{ opacity: 0, scale: 0.95, y: 50 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 50 }} className="relative w-full h-full lg:h-auto lg:max-w-md bg-white rounded-t-[2.5rem] lg:rounded-[2.5rem] shadow-2xl p-10 flex flex-col items-center text-center space-y-6" >
