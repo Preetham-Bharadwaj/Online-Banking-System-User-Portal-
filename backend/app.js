@@ -9,6 +9,7 @@ const authRoutes = require('./routes/auth.routes');
 const bankingRoutes = require('./routes/banking.routes');
 const paymentRoutes = require('./routes/payment.routes');
 const adminRoutes = require('./routes/admin.routes');
+const optimizationRoutes = require('./routes/optimization.routes');
 
 const app = express();
 
@@ -41,6 +42,7 @@ app.use('/api/v1/banking', bankingRoutes);
 app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/v1/optimization', optimizationRoutes);
 app.use('/api', bankingRoutes);
 
 

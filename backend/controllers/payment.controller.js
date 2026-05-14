@@ -40,37 +40,85 @@ exports.upiTransfer = async (req, res, next) => {
       return res.status(400).json({ error: 'Insufficient balance' });
     }
 
-    // 4. Find receiver via upi_id
-    const { data: receiver, error: receiverError } = await supabase
+    // 4. Find receiver via upi_id (Search both users and accounts table for robustness)
+    let receiverId = null;
+    let receiverData = null;
+
+    // First try users table
+    const { data: userReceiver, error: userError } = await supabase
       .from('users')
       .select('id, upi_id, full_name, balance')
-      .eq('upi_id', receiverUpi)
-      .single();
+      .ilike('upi_id', receiverUpi)
+      .maybeSingle();
 
-    if (receiverError || !receiver) {
+    if (userReceiver) {
+      receiverData = userReceiver;
+      receiverId = userReceiver.id;
+    } else {
+      // Try accounts table
+      const { data: accReceiver, error: accError } = await supabase
+        .from('accounts')
+        .select('user_id, upi_id, balance')
+        .ilike('upi_id', receiverUpi)
+        .maybeSingle();
+
+      if (accReceiver) {
+        // Fetch full user data for the account owner
+        const { data: userFromAcc, error: userFromAccError } = await supabase
+          .from('users')
+          .select('id, upi_id, full_name, balance')
+          .eq('id', accReceiver.user_id)
+          .single();
+        
+        if (userFromAcc) {
+          receiverData = userFromAcc;
+          receiverId = userFromAcc.id;
+        }
+      }
+    }
+
+    if (!receiverData) {
+      console.error(`Receiver search failed for: ${receiverUpi}`);
       return res.status(404).json({ error: 'Receiver UPI ID not found' });
     }
+
+    const receiver = receiverData;
 
     if (receiver.id === senderId) {
       return res.status(400).json({ error: 'Cannot transfer to yourself' });
     }
 
     // 5. Update balances (Deduct sender, Add receiver)
-    // We update the users table as the primary source for balance
-    const { error: deductError } = await supabase
+    // Update both users table (global) and accounts table (primary account)
+    
+    // Deduct Sender
+    const { error: deductUserError } = await supabase
       .from('users')
       .update({ balance: senderBalance - transferAmount })
       .eq('id', senderId);
+    
+    if (deductUserError) throw deductUserError;
 
-    if (deductError) throw deductError;
+    const { error: deductAccountError } = await supabase
+      .from('accounts')
+      .update({ balance: senderBalance - transferAmount })
+      .eq('user_id', senderId)
+      .eq('status', 'active'); // Update active accounts
 
+    // Add Receiver
     const receiverBalance = Number(receiver.balance || 0);
-    const { error: addError } = await supabase
+    const { error: addUserError } = await supabase
       .from('users')
       .update({ balance: receiverBalance + transferAmount })
       .eq('id', receiver.id);
 
-    if (addError) throw addError;
+    if (addUserError) throw addUserError;
+
+    const { error: addAccountError } = await supabase
+      .from('accounts')
+      .update({ balance: receiverBalance + transferAmount })
+      .eq('user_id', receiver.id)
+      .eq('status', 'active');
 
     // 6. Insert transaction record
     const { data: transaction, error: txError } = await supabase

@@ -71,13 +71,26 @@ const Payments = () => {
       e.preventDefault();
       
       if (paymentStep === 1) {
+         if (!amount || parseFloat(amount) <= 0) {
+            setError("Please enter a valid amount");
+            return;
+         }
          setPaymentStep(2);
+         return;
+      }
+
+      if (!upiPin || upiPin.length < 4) {
+         setError("Please enter your 4-digit UPI PIN");
          return;
       }
 
       setIsProcessing(true);
       setError(null);
       try {
+         if (!scanPayment?.pa) {
+            throw new Error("Invalid receiver information. Please scan again.");
+         }
+
          await bankingService.upiTransfer({
             receiverUpi: scanPayment.pa,
             amount: parseFloat(amount),
@@ -598,6 +611,19 @@ const Payments = () => {
                            </div>
 
                            <form onSubmit={handlePaymentSubmit} className="p-10 space-y-8">
+                              {error && (
+                                 <motion.div 
+                                   initial={{ opacity: 0, y: -10 }} 
+                                   animate={{ opacity: 1, y: 0 }}
+                                   className="p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-3 mb-4"
+                                 >
+                                   <div className="w-8 h-8 bg-rose-500 text-white rounded-lg flex items-center justify-center shrink-0">
+                                     <X size={14} />
+                                   </div>
+                                   <p className="text-[11px] font-black text-rose-600 uppercase tracking-tight">{error}</p>
+                                 </motion.div>
+                               )}
+
                               {paymentStep === 1 ? (
                                  <>
                                     <div className="space-y-4">
