@@ -15,6 +15,7 @@ obj/
 .env.local
 .env.*.local
 *.env
+.env.example
 
 # Logs
 logs
@@ -50,3 +51,4 @@ backend/uploads/*
 
 # Vite specific
 .vite/
+*.timestamp-*
