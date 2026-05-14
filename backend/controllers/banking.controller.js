@@ -31,6 +31,8 @@ const summarizeAnalytics = ({ transactions }) => {
   };
 };
 
+const { sanitizeUser } = require('./auth.controller');
+
 exports.getDashboardData = async (req, res, next) => {
   try {
     const userId = req.user.id;
@@ -65,7 +67,7 @@ exports.getDashboardData = async (req, res, next) => {
     const transactions = (rawTransactions || []).map(tx => normalizeTransaction(tx, userId));
 
     res.status(200).json({
-      user,
+      user: sanitizeUser(user),
       balance: Number(user.balance || 0),
       transactions,
       notifications: notifications || [],

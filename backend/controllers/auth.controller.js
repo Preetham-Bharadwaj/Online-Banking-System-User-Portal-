@@ -22,10 +22,13 @@ const createToken = (user) => jwt.sign(
 
 const sanitizeUser = (user) => {
   const userResponse = { ...user };
+  userResponse.has_upi_pin = !!user.upi_pin;
   delete userResponse.password_hash;
   delete userResponse.upi_pin;
   return userResponse;
 };
+
+exports.sanitizeUser = sanitizeUser;
 
 exports.register = async (req, res, next) => {
   try {

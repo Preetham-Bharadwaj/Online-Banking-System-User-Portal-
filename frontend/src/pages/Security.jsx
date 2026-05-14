@@ -50,7 +50,7 @@ const Security = () => {
     {
       title: "Payment Security",
       items: [
-        { id: 'UPIPIN', icon: Shield, label: "UPI PIN", desc: "Manage your 6-digit payment PIN", status: "Required" },
+        { id: 'UPIPIN', icon: Shield, label: "UPI PIN", desc: "Manage your 4-digit payment PIN", status: "Required" },
       ]
     }
   ];
@@ -181,17 +181,17 @@ const Security = () => {
                  </div>
                  <div>
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight">Set UPI PIN</h2>
-                    <p className="text-slate-400 font-bold text-[11px] uppercase tracking-widest mt-2">Required for all transactions</p>
+                    <p className="text-slate-400 font-bold text-[11px] uppercase tracking-widest mt-2">Required for all transactions (4 Digits)</p>
                  </div>
                  
                  <div className="w-full space-y-4">
                     <input 
                       type="password"
-                      maxLength="6"
-                      placeholder="Enter 6-digit PIN"
+                      maxLength="4"
+                      placeholder="••••"
                       value={upiPin}
                       onChange={(e) => setUpiPin(e.target.value)}
-                      className="w-full px-6 py-5 bg-slate-50 border-2 border-slate-100 focus:border-primary-500/20 focus:bg-white rounded-2xl text-center text-2xl font-black tracking-[0.5em] outline-none transition-all"
+                      className="w-full px-6 py-5 bg-slate-50 border-2 border-slate-100 focus:border-primary-500/20 focus:bg-white rounded-2xl text-center text-4xl font-black tracking-[0.5em] outline-none transition-all"
                     />
                     {message && (
                       <p className={`text-[10px] font-bold uppercase tracking-widest ${message.type === 'success' ? 'text-emerald-500' : 'text-rose-500'}`}>

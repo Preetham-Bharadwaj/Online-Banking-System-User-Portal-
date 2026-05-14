@@ -31,7 +31,7 @@ exports.upiTransfer = async (req, res, next) => {
     // 2. Verify PIN
     const isPinMatch = await bcrypt.compare(pin, sender.upi_pin);
     if (!isPinMatch) {
-      return res.status(401).json({ error: 'Incorrect UPI PIN' });
+      return res.status(403).json({ error: 'Incorrect UPI PIN' });
     }
 
     // 3. Verify balance

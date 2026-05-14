@@ -625,85 +625,149 @@ const Payments = () => {
                                  </motion.div>
                                )}
 
-                              {paymentStep === 1 ? (
-                                 <>
-                                    <div className="space-y-4">
-                                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2 block">Amount to Pay</label>
-                                       <div className="relative">
-                                          <span className="absolute left-6 top-1/2 -translate-y-1/2 text-3xl font-black text-slate-300">₹</span>
-                                          <input
-                                             required
-                                             type="number"
-                                             value={amount}
-                                             onChange={(e) => setAmount(e.target.value)}
-                                             placeholder="0.00"
-                                             className="w-full pl-14 pr-8 py-8 bg-slate-50 border-2 border-transparent focus:border-primary-500/20 focus:bg-white rounded-[2rem] text-4xl font-black text-slate-900 outline-none transition-all placeholder:text-slate-200"
-                                          />
-                                       </div>
-                                    </div>
+                               {paymentStep === 1 ? (
+                                  <>
+                                     <div className="space-y-4">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2 block">Amount to Pay</label>
+                                        <div className="relative">
+                                           <span className="absolute left-6 top-1/2 -translate-y-1/2 text-3xl font-black text-slate-300">₹</span>
+                                           <input
+                                              required
+                                              type="number"
+                                              value={amount}
+                                              onChange={(e) => setAmount(e.target.value)}
+                                              placeholder="0.00"
+                                              className="w-full pl-14 pr-8 py-8 bg-slate-50 border-2 border-transparent focus:border-primary-500/20 focus:bg-white rounded-[2rem] text-4xl font-black text-slate-900 outline-none transition-all placeholder:text-slate-200"
+                                           />
+                                        </div>
+                                     </div>
 
-                                    <div className="space-y-4">
-                                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2 block">Note (Optional)</label>
-                                       <input
-                                          type="text"
-                                          value={note}
-                                          onChange={(e) => setNote(e.target.value)}
-                                          placeholder="What's this for?"
-                                          className="w-full px-6 py-5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-900 outline-none focus:bg-white transition-all"
-                                       />
-                                    </div>
-                                 </>
-                              ) : (
-                                 <div className="space-y-6">
-                                    <div className="text-center">
-                                       <h4 className="text-lg font-black text-slate-900">Enter UPI PIN</h4>
-                                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">For Security Verification</p>
-                                    </div>
-                                    <div className="flex justify-center gap-3">
-                                       <input
-                                          required
-                                          type="password"
-                                          maxLength="6"
-                                          value={upiPin}
-                                          onChange={(e) => setUpiPin(e.target.value)}
-                                          placeholder="••••••"
-                                          autoFocus
-                                          className="w-48 text-center py-6 bg-slate-50 border-2 border-slate-100 focus:border-primary-500/20 focus:bg-white rounded-2xl text-3xl font-black tracking-[0.5em] outline-none transition-all"
-                                       />
-                                    </div>
-                                    <button 
-                                      type="button" 
-                                      onClick={() => setPaymentStep(1)}
-                                      className="w-full text-[10px] font-black text-primary-600 uppercase tracking-widest"
-                                    >
-                                       Back to details
-                                    </button>
-                                 </div>
-                              )}
+                                     <div className="space-y-4">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2 block">Note (Optional)</label>
+                                        <input
+                                           type="text"
+                                           value={note}
+                                           onChange={(e) => setNote(e.target.value)}
+                                           placeholder="What's this for?"
+                                           className="w-full px-6 py-5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-900 outline-none focus:bg-white focus:border-primary-500 transition-all"
+                                        />
+                                     </div>
 
-                              <div className="p-6 bg-primary-50 rounded-[2rem] border border-primary-100 flex items-center gap-4">
-                                 <ShieldCheck size={24} className="text-primary-600" />
-                                 <div>
-                                    <p className="text-[10px] font-black text-primary-900 uppercase tracking-widest leading-none mb-1">Encrypted Payment</p>
-                                    <p className="text-[11px] text-primary-700 font-bold opacity-80">This transaction is protected by 256-bit encryption.</p>
-                                 </div>
-                              </div>
+                                     <button
+                                        type="submit"
+                                        className="w-full py-5 bg-black text-white rounded-3xl font-bold flex items-center justify-center gap-2"
+                                     >
+                                        Continue
+                                     </button>
+                                  </>
+                               ) : !user?.has_upi_pin ? (
+                                  <>
+                                     <div className="text-center space-y-2">
+                                        <h3 className="text-xl font-black text-slate-900">Set Your UPI PIN</h3>
+                                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">You haven't set a PIN yet. Let's do it now.</p>
+                                     </div>
+                                     <div className="flex justify-center gap-3 py-4">
+                                        {[0, 1, 2, 3].map((i) => (
+                                           <input
+                                              key={i}
+                                              type="password"
+                                              maxLength={1}
+                                              className="w-16 h-16 bg-zinc-50 border-2 border-zinc-100 rounded-2xl text-center text-2xl font-bold focus:border-black outline-none transition-all"
+                                              value={upiPin[i] || ''}
+                                              onChange={(e) => {
+                                                 const val = e.target.value;
+                                                 if (val.length > 1) return;
+                                                 const pinArr = upiPin.split('');
+                                                 while(pinArr.length < 4) pinArr.push('');
+                                                 pinArr[i] = val;
+                                                 setUpiPin(pinArr.join(''));
+                                                 if (val && i < 3) {
+                                                    const next = e.target.nextSibling;
+                                                    if (next) next.focus();
+                                                 }
+                                              }}
+                                           />
+                                        ))}
+                                     </div>
+                                     <button
+                                        type="button"
+                                        onClick={async () => {
+                                           if (upiPin.length < 4) return;
+                                           setIsProcessing(true);
+                                           try {
+                                              await bankingService.setupPin(upiPin);
+                                              // Success! Now allow the payment to proceed
+                                              const updatedData = await bankingService.getDashboardData();
+                                              setBankingData(updatedData);
+                                              setUpiPin(''); // Clear PIN for payment
+                                              setError(null);
+                                           } catch (err) {
+                                              setError(err.response?.data?.error || "Failed to set PIN");
+                                           } finally {
+                                              setIsProcessing(false);
+                                           }
+                                        }}
+                                        disabled={isProcessing || upiPin.length < 4}
+                                        className="w-full py-5 bg-indigo-600 text-white rounded-3xl font-bold flex items-center justify-center gap-2"
+                                     >
+                                        {isProcessing ? 'Setting PIN...' : 'Setup & Continue'}
+                                     </button>
+                                  </>
+                               ) : (
+                                  <>
+                                     <div className="text-center space-y-2">
+                                        <h3 className="text-xl font-black text-slate-900">Enter UPI PIN</h3>
+                                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Verify to complete payment</p>
+                                     </div>
+                                     <div className="flex justify-center gap-3 py-4">
+                                        {[0, 1, 2, 3].map((i) => (
+                                           <input
+                                              key={i}
+                                              type="password"
+                                              maxLength={1}
+                                              className="w-16 h-16 bg-zinc-50 border-2 border-zinc-100 rounded-2xl text-center text-2xl font-bold focus:border-black outline-none transition-all"
+                                              value={upiPin[i] || ''}
+                                              onChange={(e) => {
+                                                 const val = e.target.value;
+                                                 if (val.length > 1) return;
+                                                 const pinArr = upiPin.split('');
+                                                 while(pinArr.length < 4) pinArr.push('');
+                                                 pinArr[i] = val;
+                                                 setUpiPin(pinArr.join(''));
+                                                 if (val && i < 3) {
+                                                    const next = e.target.nextSibling;
+                                                    if (next) next.focus();
+                                                 }
+                                              }}
+                                           />
+                                        ))}
+                                     </div>
+                                     <button
+                                        type="submit"
+                                        disabled={isProcessing}
+                                        className="w-full py-5 bg-black text-white rounded-3xl font-bold flex items-center justify-center gap-2"
+                                     >
+                                        {isProcessing ? 'Processing...' : 'Pay Securely'}
+                                     </button>
 
-                              <button
-                                 disabled={isProcessing}
-                                 className={`w-full py-6 rounded-[2rem] font-black text-[12px] uppercase tracking-[0.3em] transition-all shadow-2xl flex items-center justify-center gap-3 ${isProcessing ? 'bg-slate-100 text-slate-400' : 'bg-slate-900 text-white hover:bg-primary-600'}`}
-                              >
-                                 {isProcessing ? (
-                                    <>
-                                       <RefreshCcw size={18} className="animate-spin" /> Verifying...
-                                    </>
-                                 ) : (
-                                    <>
-                                       {paymentStep === 1 ? 'Continue' : `Pay ₹${amount || '0'} Securely`}
-                                    </>
-                                 )}
-                              </button>
-                           </form>
+                                     <button 
+                                        type="button" 
+                                        onClick={() => setPaymentStep(1)}
+                                        className="w-full text-[10px] font-black text-primary-600 uppercase tracking-widest"
+                                     >
+                                        Back to details
+                                     </button>
+                                  </>
+                               )}
+
+                               <div className="p-6 bg-primary-50 rounded-[2rem] border border-primary-100 flex items-center gap-4">
+                                  <ShieldCheck size={24} className="text-primary-600" />
+                                  <div>
+                                     <p className="text-[10px] font-black text-primary-900 uppercase tracking-widest leading-none mb-1">Encrypted Payment</p>
+                                     <p className="text-[11px] text-primary-700 font-bold opacity-80">This transaction is protected by 256-bit encryption.</p>
+                                  </div>
+                               </div>
+                            </form>
                         </>
                      )}
                   </motion.div>

@@ -330,8 +330,8 @@ const PaymentFlows = ({ isOpen, onClose, activeFlow, setFlow, initialData }) => 
                   <input 
                     required
                     type="password"
-                    maxLength="6"
-                    placeholder="••••••"
+                    maxLength="4"
+                    placeholder="••••"
                     autoFocus
                     className="w-48 text-center py-6 bg-slate-50 border-2 border-slate-100 focus:border-primary-500/20 focus:bg-white rounded-2xl text-3xl font-black tracking-[0.5em] outline-none transition-all"
                     onChange={(e) => setUpiPin(e.target.value)}
