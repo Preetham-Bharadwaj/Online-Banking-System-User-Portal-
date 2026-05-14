@@ -30,11 +30,12 @@ import { X, RefreshCcw } from 'lucide-react';
 
 import useStore from '../store/useStore';
 import { bankingService } from '../services/bankingService';
+import authService from '../services/authService';
 
 const Payments = () => {
    const { openScanner } = useQR();
    const location = useLocation();
-   const { balance, recentTransactions, beneficiaries, isLoading, setLoading, setError, setBankingData, activeAccount, cards, bills, platformUsers } = useStore();
+   const { balance, recentTransactions, beneficiaries, isLoading, setLoading, error, setError, setBankingData, activeAccount, cards, bills, platformUsers } = useStore();
 
    
    const [scanPayment, setScanPayment] = useState(null);
@@ -45,7 +46,21 @@ const Payments = () => {
    const [paymentStep, setPaymentStep] = useState(1); // 1: Amount, 2: PIN
    const [upiPin, setUpiPin] = useState('');
 
-   // New States for refactored functionality
+   const primaryActions = [
+      { icon: Send, label: 'Bank Transfer', color: 'bg-primary-600', desc: 'To any bank a/c' },
+      { icon: ScanIcon, label: 'Scan any QR', color: 'bg-emerald-600', desc: 'Pay merchants' },
+      { icon: Zap, label: 'UPI ID / Phone', color: 'bg-indigo-600', desc: 'Instant transfer' },
+      { icon: Users, label: 'Split & Groups', color: 'bg-violet-600', desc: 'Manage expenses' },
+   ];
+
+   const secondaryActions = [
+      { icon: Smartphone, label: 'Mobile', color: 'bg-rose-500' },
+      { icon: Receipt, label: 'Utilities', color: 'bg-amber-500' },
+      { icon: CreditCard, label: 'Card Bill', color: 'bg-slate-800' },
+      { icon: Zap, label: 'Fastag', color: 'bg-blue-500' },
+      { icon: ShieldCheck, label: 'Insurance', color: 'bg-emerald-600' },
+   ];
+
    const [activeFlow, setActiveFlow] = useState(null);
    const [searchQuery, setSearchQuery] = useState('');
    const [isSearching, setIsSearching] = useState(false);
@@ -189,20 +204,6 @@ const Payments = () => {
       icon: Receipt
    }));
 
-   const primaryActions = [
-      { icon: Send, label: 'Bank Transfer', color: 'bg-primary-600', desc: 'To any bank a/c' },
-      { icon: ScanIcon, label: 'Scan any QR', color: 'bg-emerald-600', desc: 'Pay merchants' },
-      { icon: Zap, label: 'UPI ID / Phone', color: 'bg-indigo-600', desc: 'Instant transfer' },
-      { icon: Users, label: 'Split & Groups', color: 'bg-violet-600', desc: 'Manage expenses' },
-   ];
-
-   const secondaryActions = [
-      { icon: Smartphone, label: 'Mobile', color: 'bg-rose-500' },
-      { icon: Receipt, label: 'Utilities', color: 'bg-amber-500' },
-      { icon: CreditCard, label: 'Card Bill', color: 'bg-slate-800' },
-      { icon: Zap, label: 'Fastag', color: 'bg-blue-500' },
-      { icon: ShieldCheck, label: 'Insurance', color: 'bg-emerald-600' },
-   ];
 
    const getStatusChip = (status) => {
       switch (status) {
