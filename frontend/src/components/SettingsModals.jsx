@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
@@ -6,9 +6,7 @@ import {
   Volume2, 
   Mail, 
   MessageSquare, 
-  Smartphone,
   CheckCircle2,
-  Lock,
   RefreshCcw,
   Sun,
   Moon,
@@ -16,15 +14,15 @@ import {
   Camera,
   MapPin,
   Users,
-  ShieldCheck,
-  Eye,
   Key,
   Shield
 } from 'lucide-react';
+import { bankingService } from '../services/bankingService';
 
 const SettingsModals = ({ isOpen, onClose, type }) => {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
 
   // States for various settings
   const [notifs, setNotifs] = useState({
@@ -40,18 +38,104 @@ const SettingsModals = ({ isOpen, onClose, type }) => {
   });
 
   const [upiStep, setUpiStep] = useState(1);
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [upiPin, setUpiPin] = useState(['', '', '', '', '', '']);
+  const [confirmUpiPin, setConfirmUpiPin] = useState(['', '', '', '', '', '']);
+
+  const resetModalState = () => {
+    setLoading(false);
+    setSuccess(false);
+    setError('');
+    setUpiStep(1);
+    setOtp(['', '', '', '', '', '']);
+    setUpiPin(['', '', '', '', '', '']);
+    setConfirmUpiPin(['', '', '', '', '', '']);
+  };
+
+  const handleClose = () => {
+    resetModalState();
+    onClose();
+  };
 
   const handleSave = () => {
+    setError('');
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
       setSuccess(true);
       setTimeout(() => {
-        setSuccess(false);
-        onClose();
+        handleClose();
       }, 1500);
     }, 1000);
+  };
+
+  const handlePinDigitChange = (setter, values, index, value, prefix) => {
+    const digits = value.replace(/\D/g, '').slice(0, values.length - index);
+    const next = [...values];
+
+    if (!digits) {
+      next[index] = '';
+      setter(next);
+      return;
+    }
+
+    digits.split('').forEach((digit, offset) => {
+      next[index + offset] = digit;
+    });
+
+    setter(next);
+
+    const nextFocusIndex = Math.min(index + digits.length, values.length - 1);
+    if (nextFocusIndex !== index || index < values.length - 1) {
+      document.getElementById(`${prefix}-${nextFocusIndex}`)?.focus();
+    }
+  };
+
+  const handlePinKeyDown = (values, index, event, prefix) => {
+    if (event.key === 'Backspace' && !values[index] && index > 0) {
+      document.getElementById(`${prefix}-${index - 1}`)?.focus();
+    }
+  };
+
+  const handleOtpProceed = () => {
+    setError('');
+
+    if (otp.join('').length !== 6) {
+      setError('Please enter the 6-digit OTP.');
+      return;
+    }
+
+    setUpiStep(3);
+  };
+
+  const handleUpiPinSave = async () => {
+    const newPin = upiPin.join('');
+    const confirmPin = confirmUpiPin.join('');
+
+    setError('');
+
+    if (newPin.length !== 6 || confirmPin.length !== 6) {
+      setError('Please enter and confirm a 6-digit UPI PIN.');
+      return;
+    }
+
+    if (newPin !== confirmPin) {
+      setError('UPI PIN and confirmation PIN do not match.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await bankingService.setupPin(newPin);
+      setSuccess(true);
+      setTimeout(() => {
+        handleClose();
+      }, 1500);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to update UPI PIN. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const renderContent = () => {
@@ -200,10 +284,23 @@ const SettingsModals = ({ isOpen, onClose, type }) => {
                   </div>
                   <div className="flex justify-center gap-2">
                      {[0,1,2,3,4,5].map((i) => (
-                       <input key={i} type="text" maxLength="1" className="w-10 h-14 bg-slate-50 border-2 border-slate-200 rounded-xl text-center text-xl font-black text-slate-900 outline-none focus:border-primary-600" />
+                       <input
+                         key={i}
+                         id={`upi-otp-${i}`}
+                         type="text"
+                         inputMode="numeric"
+                         maxLength="6"
+                         value={otp[i]}
+                         onChange={(event) => handlePinDigitChange(setOtp, otp, i, event.target.value, 'upi-otp')}
+                         onKeyDown={(event) => handlePinKeyDown(otp, i, event, 'upi-otp')}
+                         className="w-10 h-14 bg-slate-50 border-2 border-slate-200 rounded-xl text-center text-xl font-black text-slate-900 outline-none focus:border-primary-600"
+                       />
                      ))}
                   </div>
-                  <button onClick={() => setUpiStep(3)} className="w-full py-6 bg-primary-600 text-white rounded-[2rem] font-black text-[12px] uppercase tracking-[0.3em] shadow-xl hover:bg-primary-700 transition-all">Verify & Proceed</button>
+                  {error && (
+                    <p className="text-center text-[11px] font-bold text-rose-600 leading-relaxed">{error}</p>
+                  )}
+                  <button onClick={handleOtpProceed} className="w-full py-6 bg-primary-600 text-white rounded-[2rem] font-black text-[12px] uppercase tracking-[0.3em] shadow-xl hover:bg-primary-700 transition-all">Verify & Proceed</button>
                </div>
              ) : (
                <div className="space-y-8">
@@ -214,17 +311,44 @@ const SettingsModals = ({ isOpen, onClose, type }) => {
                   <div className="space-y-6">
                      <div className="flex justify-center gap-2">
                         {[0,1,2,3,4,5].map((i) => (
-                          <input key={i} type="password" maxLength="1" className="w-10 h-14 bg-slate-50 border-2 border-slate-200 rounded-xl text-center text-xl font-black text-slate-900 outline-none focus:border-primary-600" />
+                          <input
+                            key={i}
+                            id={`upi-pin-${i}`}
+                            type="password"
+                            inputMode="numeric"
+                            maxLength="1"
+                            value={upiPin[i]}
+                            onChange={(event) => handlePinDigitChange(setUpiPin, upiPin, i, event.target.value, 'upi-pin')}
+                            onKeyDown={(event) => handlePinKeyDown(upiPin, i, event, 'upi-pin')}
+                            className="w-10 h-14 bg-slate-50 border-2 border-slate-200 rounded-xl text-center text-xl font-black text-slate-900 outline-none focus:border-primary-600"
+                          />
                         ))}
                      </div>
                      <p className="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Confirm New PIN</p>
                      <div className="flex justify-center gap-2">
                         {[0,1,2,3,4,5].map((i) => (
-                          <input key={`c-${i}`} type="password" maxLength="1" className="w-10 h-14 bg-slate-50 border-2 border-slate-200 rounded-xl text-center text-xl font-black text-slate-900 outline-none focus:border-primary-600" />
+                          <input
+                            key={`c-${i}`}
+                            id={`confirm-upi-pin-${i}`}
+                            type="password"
+                            inputMode="numeric"
+                            maxLength="1"
+                            value={confirmUpiPin[i]}
+                            onChange={(event) => handlePinDigitChange(setConfirmUpiPin, confirmUpiPin, i, event.target.value, 'confirm-upi-pin')}
+                            onKeyDown={(event) => handlePinKeyDown(confirmUpiPin, i, event, 'confirm-upi-pin')}
+                            className="w-10 h-14 bg-slate-50 border-2 border-slate-200 rounded-xl text-center text-xl font-black text-slate-900 outline-none focus:border-primary-600"
+                          />
                         ))}
                      </div>
+                     {error && (
+                       <p className="text-center text-[11px] font-bold text-rose-600 leading-relaxed">{error}</p>
+                     )}
                   </div>
-                  <button onClick={handleSave} className="w-full py-6 bg-indigo-600 text-white rounded-[2rem] font-black text-[12px] uppercase tracking-[0.3em] shadow-xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-3">
+                  <button
+                    onClick={handleUpiPinSave}
+                    disabled={loading}
+                    className="w-full py-6 bg-indigo-600 text-white rounded-[2rem] font-black text-[12px] uppercase tracking-[0.3em] shadow-xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-3 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
                     {loading ? <RefreshCcw className="animate-spin" /> : 'Complete PIN Setup'}
                   </button>
                </div>
@@ -246,7 +370,7 @@ const SettingsModals = ({ isOpen, onClose, type }) => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={onClose}
+          onClick={handleClose}
           className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
         />
 
@@ -262,7 +386,7 @@ const SettingsModals = ({ isOpen, onClose, type }) => {
               <h3 className="text-xl font-black text-slate-900 tracking-tight">{type}</h3>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Finova System Preferences</p>
             </div>
-            <button onClick={onClose} className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-900 transition-colors">
+            <button onClick={handleClose} className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-900 transition-colors">
               <X size={20} />
             </button>
           </div>

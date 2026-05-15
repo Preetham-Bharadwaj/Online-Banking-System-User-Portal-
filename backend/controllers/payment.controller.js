@@ -202,12 +202,17 @@ exports.setupPin = async (req, res, next) => {
       return res.status(400).json({ error: 'PIN must be at least 4 digits' });
     }
 
-    const { error } = await supabase
+    const { data: updatedUser, error } = await supabase
       .from('users')
       .update({ upi_pin: normalizedPin })
-      .eq('id', req.user.id);
+      .eq('id', req.user.id)
+      .select('id')
+      .single();
 
     if (error) throw error;
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
     res.status(200).json({ success: true, message: 'UPI PIN set successfully' });
   } catch (error) {
