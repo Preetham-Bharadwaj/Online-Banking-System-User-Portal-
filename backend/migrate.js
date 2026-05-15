@@ -38,6 +38,9 @@ async function runMigrations() {
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT false`,
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_enabled BOOLEAN DEFAULT false`,
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT false`,
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS upi_id VARCHAR(100)`,
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS upi_pin TEXT`,
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS balance DECIMAL(15,2) DEFAULT 0.00`,
   ];
 
 

@@ -14,7 +14,7 @@ async function runMigration() {
     const queries = [
       // Update users table
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS upi_id VARCHAR(100)`,
-      `ALTER TABLE users ADD COLUMN IF NOT EXISTS upi_pin_hash TEXT`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS upi_pin TEXT`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS balance DECIMAL(15,2) DEFAULT 0.00`,
       
       // Update transactions table if needed (adding receiver_id etc)

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import useStore from '../store/useStore';
 import authService from '../services/authService';
+import { bankingService } from '../services/bankingService';
 
 const TransferFlow = ({ isOpen, onClose }) => {
   const { platformUsers, user: currentUser, balance, setBankingData } = useStore();
@@ -286,7 +287,7 @@ const TransferFlow = ({ isOpen, onClose }) => {
 
                   <button 
                     onClick={handleTransfer}
-                    disabled={loading || !amount || !pin || pin.length < 6}
+                    disabled={loading || !amount || !pin || pin.length < 4}
                     className="w-full py-5 bg-primary-600 text-white rounded-[1.5rem] font-black text-[12px] uppercase tracking-[0.2em] shadow-xl shadow-primary-200 hover:bg-primary-700 disabled:opacity-50 disabled:shadow-none transition-all flex items-center justify-center gap-3 mt-4"
                   >
                     {loading ? 'Processing...' : 'Confirm Transfer'}

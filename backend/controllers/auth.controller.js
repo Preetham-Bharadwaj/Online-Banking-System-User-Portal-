@@ -22,13 +22,10 @@ const createToken = (user) => jwt.sign(
 
 const sanitizeUser = (user) => {
   const userResponse = { ...user };
-  userResponse.has_upi_pin = !!user.upi_pin;
   delete userResponse.password_hash;
   delete userResponse.upi_pin;
   return userResponse;
 };
-
-exports.sanitizeUser = sanitizeUser;
 
 exports.register = async (req, res, next) => {
   try {
@@ -59,8 +56,13 @@ exports.register = async (req, res, next) => {
       return res.status(400).json({ error: 'Email or Phone Number already registered' });
     }
 
+    const normalizedUpiPin = String(upi_pin).replace(/\D/g, '');
+
+    if (normalizedUpiPin.length < 4) {
+      return res.status(400).json({ error: 'UPI PIN must be at least 4 digits' });
+    }
+
     const password_hash = await bcrypt.hash(password, 10);
-    const upi_pin_hash = await bcrypt.hash(upi_pin, 10);
     const upi_id = buildUpiId(email);
 
     // Insert into users
@@ -72,7 +74,7 @@ exports.register = async (req, res, next) => {
         full_name,
         phone_number: normalizedPhone,
         upi_id,
-        upi_pin: upi_pin_hash,
+        upi_pin: normalizedUpiPin,
         balance: initial_balance,
         role: 'customer'
       }])
@@ -207,7 +209,7 @@ exports.searchUsers = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-};exports.getAllUsers = async (req, res, next) => {
+}; exports.getAllUsers = async (req, res, next) => {
   try {
     const currentUserId = req.user.id;
     const { data, error } = await supabase
@@ -222,4 +224,3 @@ exports.searchUsers = async (req, res, next) => {
     next(error);
   }
 };
-

@@ -3,15 +3,15 @@ const supabase = require('../config/supabase');
 const normalizeTransaction = (tx, currentUserId) => {
   const isSender = tx.sender_id === currentUserId;
   const amount = Number(tx.amount || 0);
-  
+
   return {
     ...tx,
-    description: isSender ? `Paid to ${tx.receiver_upi}` : `Received from ${tx.sender_upi}`,
+    description: tx.note || (isSender ? `Paid to ${tx.receiver_upi}` : `Received from ${tx.sender_upi}`),
     type: isSender ? 'expense' : 'income',
     display_amount: isSender ? -amount : amount,
     status: tx.status || 'completed',
-    payment_method: 'UPI',
-    category: isSender ? 'Transfer' : 'Income',
+    payment_method: tx.payment_type || 'UPI',
+    category: tx.note || (isSender ? 'Transfer' : 'Income'),
     created_at: tx.created_at
   };
 };
@@ -30,8 +30,6 @@ const summarizeAnalytics = ({ transactions }) => {
     budgetUtilization: 0
   };
 };
-
-const { sanitizeUser } = require('./auth.controller');
 
 exports.getDashboardData = async (req, res, next) => {
   try {
@@ -67,7 +65,7 @@ exports.getDashboardData = async (req, res, next) => {
     const transactions = (rawTransactions || []).map(tx => normalizeTransaction(tx, userId));
 
     res.status(200).json({
-      user: sanitizeUser(user),
+      user,
       balance: Number(user.balance || 0),
       transactions,
       notifications: notifications || [],

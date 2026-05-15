@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  X, 
-  Search, 
-  ArrowRight, 
-  Building2, 
-  Smartphone, 
-  Hash, 
-  Zap, 
-  Receipt, 
-  CreditCard, 
-  ShieldCheck, 
+import {
+  X,
+  Search,
+  ArrowRight,
+  Building2,
+  Smartphone,
+  Hash,
+  Zap,
+  Receipt,
+  CreditCard,
+  ShieldCheck,
   CheckCircle2,
   Users,
   Plus,
@@ -36,7 +36,7 @@ const PaymentFlows = ({ isOpen, onClose, activeFlow, setFlow, initialData }) => 
   const [error, setError] = useState(null);
   const { beneficiaries, accounts, setBankingData } = useStore();
 
-  
+
   useEffect(() => {
     if (isOpen && initialData) {
       if (initialData.upi) {
@@ -77,7 +77,7 @@ const PaymentFlows = ({ isOpen, onClose, activeFlow, setFlow, initialData }) => 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (activeFlow === 'UPI ID / Phone' && step === 2) {
       setStep(4); // PIN step for UPI
       return;
@@ -108,7 +108,7 @@ const PaymentFlows = ({ isOpen, onClose, activeFlow, setFlow, initialData }) => 
 
         await bankingService.initiateTransfer({
           fromAccountId,
-          toAccountDetails: { 
+          toAccountDetails: {
             name: formData.name,
             account_number: formData.acc,
             ifsc: formData.ifsc,
@@ -135,9 +135,9 @@ const PaymentFlows = ({ isOpen, onClose, activeFlow, setFlow, initialData }) => 
   };
 
   const ErrorAlert = () => error ? (
-    <motion.div 
-      initial={{ opacity: 0, y: -10 }} 
-      animate={{ opacity: 1, y: 0 }} 
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
       className="mx-8 mt-4 p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-3"
     >
       <div className="w-8 h-8 bg-rose-500 text-white rounded-lg flex items-center justify-center shrink-0">
@@ -153,7 +153,7 @@ const PaymentFlows = ({ isOpen, onClose, activeFlow, setFlow, initialData }) => 
     if (step === 3) {
       return (
         <div className="p-12 text-center space-y-6 flex flex-col items-center justify-center min-h-[400px]">
-          <motion.div 
+          <motion.div
             initial={{ scale: 0.5, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             className="w-24 h-24 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-2xl shadow-emerald-200"
@@ -169,7 +169,7 @@ const PaymentFlows = ({ isOpen, onClose, activeFlow, setFlow, initialData }) => 
             <p className="text-lg font-black text-slate-900">{activeFlow === 'Bank Transfer' ? 'Transfer Initiated' : activeFlow + ' Successful'}</p>
             <p className="text-2xl font-black text-primary-600 mt-3">₹{formData.amount || '0'}</p>
           </div>
-          <button 
+          <button
             onClick={resetFlow}
             className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-[12px] uppercase tracking-[0.2em] shadow-xl hover:bg-black transition-all"
           >
@@ -185,44 +185,44 @@ const PaymentFlows = ({ isOpen, onClose, activeFlow, setFlow, initialData }) => 
           <form onSubmit={handleSubmit} className="p-8 lg:p-10 space-y-6">
             <div className="space-y-4">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Beneficiary Details</label>
-              <input 
+              <input
                 required
                 placeholder="Account Number"
                 className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-900 outline-none focus:bg-white focus:border-primary-500 transition-all"
-                onChange={(e) => setFormData({...formData, acc: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, acc: e.target.value })}
               />
-              <input 
+              <input
                 required
                 placeholder="IFSC Code"
                 className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-900 outline-none focus:bg-white focus:border-primary-500 transition-all uppercase"
-                onChange={(e) => setFormData({...formData, ifsc: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, ifsc: e.target.value })}
               />
-              <input 
+              <input
                 required
                 placeholder="Beneficiary Name"
                 className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-900 outline-none focus:bg-white focus:border-primary-500 transition-all"
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
             </div>
             <div className="space-y-4">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Amount & Remarks</label>
               <div className="relative">
                 <span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-black text-slate-300">₹</span>
-                <input 
+                <input
                   required
                   type="number"
                   placeholder="0.00"
                   className="w-full pl-14 pr-6 py-6 bg-slate-50 border-2 border-transparent focus:border-primary-500/20 focus:bg-white rounded-[2rem] text-4xl font-black text-slate-900 outline-none transition-all"
-                  onChange={(e) => setFormData({...formData, amount: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                 />
               </div>
-              <input 
+              <input
                 placeholder="Remarks (Optional)"
                 className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-900 outline-none focus:bg-white focus:border-primary-500 transition-all"
-                onChange={(e) => setFormData({...formData, note: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, note: e.target.value })}
               />
             </div>
-            <button 
+            <button
               disabled={loading}
               className="w-full py-6 bg-slate-900 text-white rounded-[2rem] font-black text-[12px] uppercase tracking-[0.3em] shadow-2xl hover:bg-primary-600 transition-all flex items-center justify-center gap-3"
             >
@@ -236,9 +236,9 @@ const PaymentFlows = ({ isOpen, onClose, activeFlow, setFlow, initialData }) => 
           <div className="p-8 lg:p-10 space-y-8">
             <div className="relative group">
               <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${searching ? 'text-primary-600 animate-pulse' : 'text-slate-400 group-focus-within:text-primary-600'}`} size={18} />
-              <input 
-                type="text" 
-                placeholder="Enter UPI ID or Phone..." 
+              <input
+                type="text"
+                placeholder="Enter UPI ID or Phone..."
                 value={searchQuery}
                 className="w-full pl-12 pr-4 py-5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-500/5 text-sm font-bold text-slate-900 outline-none transition-all"
                 onChange={(e) => handleSearch(e.target.value)}
@@ -251,8 +251,8 @@ const PaymentFlows = ({ isOpen, onClose, activeFlow, setFlow, initialData }) => 
                 <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Found Users</h4>
                 <div className="space-y-1">
                   {searchResults.map((user) => (
-                    <button 
-                      key={user.id} 
+                    <button
+                      key={user.id}
                       onClick={() => {
                         setFormData({ ...formData, upi: user.upi_id, name: user.full_name });
                         setSearchQuery(user.upi_id);
@@ -280,7 +280,7 @@ const PaymentFlows = ({ isOpen, onClose, activeFlow, setFlow, initialData }) => 
               <div className="grid grid-cols-4 gap-4">
                 {beneficiaries.length > 0 ? beneficiaries.slice(0, 4).map((item, i) => (
                   <button key={i} onClick={() => {
-                    setFormData({...formData, name: item.beneficiary_name, upi: item.upi_id});
+                    setFormData({ ...formData, name: item.beneficiary_name, upi: item.upi_id });
                     setSearchQuery(item.upi_id);
                     setStep(2);
                   }} className="flex flex-col items-center gap-2 group">
@@ -302,16 +302,16 @@ const PaymentFlows = ({ isOpen, onClose, activeFlow, setFlow, initialData }) => 
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pt-4 border-t border-slate-100">
                 <div className="relative">
                   <span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-black text-slate-300">₹</span>
-                  <input 
+                  <input
                     required
                     type="number"
                     placeholder="0.00"
                     autoFocus
                     className="w-full pl-14 pr-6 py-6 bg-slate-50 border-2 border-transparent focus:border-primary-500/20 focus:bg-white rounded-[2rem] text-4xl font-black text-slate-900 outline-none transition-all"
-                    onChange={(e) => setFormData({...formData, amount: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                   />
                 </div>
-                <button 
+                <button
                   onClick={handleSubmit}
                   className="w-full py-6 bg-indigo-600 text-white rounded-[2rem] font-black text-[12px] uppercase tracking-[0.3em] shadow-xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-3"
                 >
@@ -327,17 +327,17 @@ const PaymentFlows = ({ isOpen, onClose, activeFlow, setFlow, initialData }) => 
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Verify your identity</p>
                 </div>
                 <div className="flex justify-center">
-                  <input 
+                  <input
                     required
                     type="password"
-                    maxLength="4"
-                    placeholder="••••"
+                    maxLength="6"
+                    placeholder="••••••"
                     autoFocus
                     className="w-48 text-center py-6 bg-slate-50 border-2 border-slate-100 focus:border-primary-500/20 focus:bg-white rounded-2xl text-3xl font-black tracking-[0.5em] outline-none transition-all"
                     onChange={(e) => setUpiPin(e.target.value)}
                   />
                 </div>
-                <button 
+                <button
                   onClick={handleSubmit}
                   className="w-full py-6 bg-slate-900 text-white rounded-[2rem] font-black text-[12px] uppercase tracking-[0.3em] shadow-xl hover:bg-primary-600 transition-all flex items-center justify-center gap-3"
                 >
@@ -411,7 +411,7 @@ const PaymentFlows = ({ isOpen, onClose, activeFlow, setFlow, initialData }) => 
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Service Details</label>
               <div className="relative group">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary-600 transition-colors" size={18} />
-                <input 
+                <input
                   required
                   placeholder={`Search ${activeFlow} Biller or enter Number...`}
                   className="w-full pl-12 pr-4 py-5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-primary-500 text-sm font-bold text-slate-900 outline-none transition-all"
@@ -420,37 +420,37 @@ const PaymentFlows = ({ isOpen, onClose, activeFlow, setFlow, initialData }) => 
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-               {[
-                 { n: 'Airtel Postpaid', l: 'Last: ₹899' },
-                 { n: 'BESCOM', l: 'Due: ₹2,450' },
-                 { n: 'HDFC Card', l: 'Due: ₹12,800' },
-                 { n: 'ICICI Fastag', l: 'Bal: ₹450' }
-               ].map((b, i) => (
-                 <button key={i} type="button" onClick={() => setStep(2)} className="p-4 bg-white border border-slate-100 rounded-2xl hover:border-primary-200 transition-all text-left space-y-2">
-                    <p className="text-[11px] font-black text-slate-900 uppercase tracking-tight">{b.n}</p>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{b.l}</p>
-                 </button>
-               ))}
+              {[
+                { n: 'Airtel Postpaid', l: 'Last: ₹899' },
+                { n: 'BESCOM', l: 'Due: ₹2,450' },
+                { n: 'HDFC Card', l: 'Due: ₹12,800' },
+                { n: 'ICICI Fastag', l: 'Bal: ₹450' }
+              ].map((b, i) => (
+                <button key={i} type="button" onClick={() => setStep(2)} className="p-4 bg-white border border-slate-100 rounded-2xl hover:border-primary-200 transition-all text-left space-y-2">
+                  <p className="text-[11px] font-black text-slate-900 uppercase tracking-tight">{b.n}</p>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{b.l}</p>
+                </button>
+              ))}
             </div>
 
             {step === 2 && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pt-4 border-t border-slate-100">
                 <div className="flex justify-between items-center px-1">
-                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Enter Amount</p>
-                   <span className="text-[10px] font-black text-primary-600 uppercase tracking-widest cursor-pointer">View Plans</span>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Enter Amount</p>
+                  <span className="text-[10px] font-black text-primary-600 uppercase tracking-widest cursor-pointer">View Plans</span>
                 </div>
                 <div className="relative">
                   <span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-black text-slate-300">₹</span>
-                  <input 
+                  <input
                     required
                     type="number"
                     placeholder="0.00"
                     autoFocus
                     className="w-full pl-14 pr-6 py-6 bg-slate-50 border-2 border-transparent focus:border-primary-500/20 focus:bg-white rounded-[2rem] text-4xl font-black text-slate-900 outline-none transition-all"
-                    onChange={(e) => setFormData({...formData, amount: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                   />
                 </div>
-                <button 
+                <button
                   type="submit"
                   className="w-full py-6 bg-slate-900 text-white rounded-[2rem] font-black text-[12px] uppercase tracking-[0.3em] shadow-xl hover:bg-primary-600 transition-all flex items-center justify-center gap-3"
                 >
@@ -491,7 +491,7 @@ const PaymentFlows = ({ isOpen, onClose, activeFlow, setFlow, initialData }) => 
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Next Payment Date</label>
                 <div className="relative">
                   <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                  <input 
+                  <input
                     type="date"
                     className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-900 outline-none focus:bg-white transition-all"
                   />
@@ -502,18 +502,18 @@ const PaymentFlows = ({ isOpen, onClose, activeFlow, setFlow, initialData }) => 
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Amount</label>
                 <div className="relative">
                   <span className="absolute left-6 top-1/2 -translate-y-1/2 text-xl font-black text-slate-300">₹</span>
-                  <input 
+                  <input
                     required
                     type="number"
                     placeholder="0.00"
                     className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-lg font-black text-slate-900 outline-none focus:bg-white transition-all"
-                    onChange={(e) => setFormData({...formData, amount: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                   />
                 </div>
               </div>
             </div>
 
-            <button 
+            <button
               type="submit"
               className="w-full py-6 bg-primary-600 text-white rounded-[2rem] font-black text-[12px] uppercase tracking-[0.3em] shadow-xl hover:bg-primary-700 transition-all flex items-center justify-center gap-3"
             >
@@ -560,8 +560,8 @@ const PaymentFlows = ({ isOpen, onClose, activeFlow, setFlow, initialData }) => 
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto no-scrollbar pb-8">
-               <ErrorAlert />
-               {renderContent()}
+              <ErrorAlert />
+              {renderContent()}
             </div>
           </motion.div>
         </div>

@@ -30,7 +30,7 @@ import InsightCard from '../components/InsightCard';
 import ContactAvatar from '../components/ContactAvatar';
 import BalanceCard from '../components/BalanceCard';
 import TransferFlow from '../components/TransferFlow';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 import useStore from '../store/useStore';
 
@@ -39,6 +39,9 @@ const Dashboard = () => {
    const [isTransferOpen, setIsTransferOpen] = useState(false);
    const { balance, recentTransactions, user, isLoading, activeAccount, fixedDeposits, loans, analytics, platformUsers } = useStore();
 
+   useEffect(() => {
+      console.log('Current logged in user:', user?.email);
+   }, [user]);
 
    const transactions = recentTransactions.length > 0 ? recentTransactions.map(tx => ({
       id: tx.id,

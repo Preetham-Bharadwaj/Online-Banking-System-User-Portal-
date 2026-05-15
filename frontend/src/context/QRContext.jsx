@@ -23,32 +23,30 @@ export const QRProvider = ({ children }) => {
     console.log("QR Scanned successfully:", data);
     setScannedData(data);
     setIsScannerOpen(false);
-    
+
     // Logic to parse UPI URL and navigate to Payment Confirmation
     // upi://pay?pa=user@vertex&pn=Customer
-    const lowerData = data.toLowerCase();
-    if (lowerData.startsWith('upi://pay')) {
-      const queryString = data.includes('?') ? data.split('?')[1] : '';
-      const params = new URLSearchParams(queryString);
+    if (data.startsWith('upi://pay')) {
+      const params = new URLSearchParams(data.split('?')[1]);
       const receiver = {
         pa: params.get('pa'),
         pn: params.get('pn'),
         am: params.get('am') || '',
         cu: params.get('cu') || 'INR'
       };
-      
+
       // Navigate to payments with pre-filled data
       navigate('/app/payments', { state: { flow: 'scan', receiver } });
     } else {
       // Handle generic QR or show error
-      alert("This doesn't look like a valid UPI QR code. Please scan a standard payment QR.");
+      alert("Invalid Banking QR. Please scan a valid UPI QR code.");
     }
   };
 
   return (
-    <QRContext.Provider value={{ 
-      isScannerOpen, 
-      openScanner, 
+    <QRContext.Provider value={{
+      isScannerOpen,
+      openScanner,
       closeScanner,
       isGeneratorOpen,
       openGenerator,

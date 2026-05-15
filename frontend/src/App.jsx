@@ -95,7 +95,6 @@ function App() {
           console.error("Realtime sync failed:", err);
         }
       })
-      // Also listen to new notifications
       .on('postgres_changes', { 
         event: 'INSERT', 
         schema: 'public', 
@@ -107,6 +106,22 @@ function App() {
           setBankingData(data);
         } catch (err) {
           console.error("Realtime notification sync failed:", err);
+        }
+      })
+      // Listen to new transactions where user is sender or receiver
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'transactions'
+      }, async (payload) => {
+        if (payload.new.sender_id === user.id || payload.new.receiver_id === user.id) {
+          console.log("Transaction detected for user:", payload);
+          try {
+            const data = await bankingService.getDashboardData();
+            setBankingData(data);
+          } catch (err) {
+            console.error("Realtime transaction sync failed:", err);
+          }
         }
       })
       .subscribe();
