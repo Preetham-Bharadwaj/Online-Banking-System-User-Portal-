@@ -23,6 +23,15 @@ const useStore = create((set) => ({
   analytics: null,
   platformUsers: [],
   
+  // Caching Layer
+  cache: {
+    transactions: null,
+    analytics: null,
+    beneficiaries: null,
+    accounts: null,
+    lastUpdate: {}
+  },
+  
   // UI State
   isLoading: false,
   error: null,
@@ -52,28 +61,61 @@ const useStore = create((set) => ({
       loans: [],
       budgets: [],
       qrPayments: [],
-      analytics: null
+      analytics: null,
+      cache: {
+        transactions: null,
+        analytics: null,
+        beneficiaries: null,
+        accounts: null,
+        lastUpdate: {}
+      }
     });
   },
 
-  setBankingData: (data) => set((state) => ({ 
-    accounts: data.accounts || [], 
-    activeAccount: data.activeAccount || data.accounts?.[0] || null,
-    balance: data.balance || 0,
-    recentTransactions: data.transactions || [],
-    cards: data.cards || [],
-    beneficiaries: data.beneficiaries || [],
-    bills: data.bills || [],
-    fixedDeposits: data.fixedDeposits || [],
-    recurringDeposits: data.recurringDeposits || [],
-    loans: data.loans || [],
-    notifications: data.notifications || [],
-    budgets: data.budgets || [],
-    qrPayments: data.qrPayments || [],
-    analytics: data.analytics || null,
-    // Only update user if the API returned one, never wipe what setAuth stored
-    user: data.user || state.user
+  setBankingData: (data) => set((state) => {
+    const newState = { 
+      accounts: data.accounts || state.accounts, 
+      activeAccount: data.activeAccount || data.accounts?.[0] || state.activeAccount,
+      balance: data.balance !== undefined ? data.balance : state.balance,
+      recentTransactions: data.transactions || state.recentTransactions,
+      cards: data.cards || state.cards,
+      beneficiaries: data.beneficiaries || state.beneficiaries,
+      bills: data.bills || state.bills,
+      fixedDeposits: data.fixedDeposits || state.fixedDeposits,
+      recurringDeposits: data.recurringDeposits || state.recurringDeposits,
+      loans: data.loans || state.loans,
+      notifications: data.notifications || state.notifications,
+      budgets: data.budgets || state.budgets,
+      qrPayments: data.qrPayments || state.qrPayments,
+      analytics: data.analytics || state.analytics,
+      user: data.user || state.user
+    };
+
+    // Update Cache
+    const newCache = { ...state.cache };
+    if (data.transactions) newCache.transactions = data.transactions;
+    if (data.analytics) newCache.analytics = data.analytics;
+    if (data.beneficiaries) newCache.beneficiaries = data.beneficiaries;
+    if (data.accounts) newCache.accounts = data.accounts;
+    newCache.lastUpdate = { ...state.cache.lastUpdate, generic: Date.now() };
+
+    return { ...newState, cache: newCache };
+  }),
+
+  // Cache Management
+  invalidateCache: (key) => set((state) => ({
+    cache: { ...state.cache, [key]: null }
   })),
+
+  getCachedData: (key) => {
+    const state = useStore.getState();
+    const ttl = 5 * 60 * 1000; // 5 min TTL
+    const lastUpdate = state.cache.lastUpdate[key] || 0;
+    if (state.cache[key] && (Date.now() - lastUpdate < ttl)) {
+      return state.cache[key];
+    }
+    return null;
+  },
 
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error }),

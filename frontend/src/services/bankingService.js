@@ -79,5 +79,26 @@ export const bankingService = {
   getQrDetails: async () => {
     const response = await api.get('/payments/qr-details');
     return response.data;
+  },
+
+  // ── DSA Optimization Endpoints ──────────────────────────
+  getAutocomplete: async (query) => {
+    const response = await api.get(`/optimization/autocomplete?query=${encodeURIComponent(query)}`);
+    return response.data;
+  },
+
+  getSortedTransactions: async () => {
+    const response = await api.get('/optimization/sort');
+    return response.data;
+  },
+
+  getFraudAnalysis: async () => {
+    const response = await api.get('/optimization/fraud');
+    return response.data;
+  },
+
+  getDSAAnalytics: async () => {
+    const response = await api.get('/optimization/analytics');
+    return response.data;
   }
 };

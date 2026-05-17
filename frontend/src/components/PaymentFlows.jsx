@@ -53,8 +53,25 @@ const PaymentFlows = ({ isOpen, onClose, activeFlow, setFlow, initialData }) => 
     if (query.length > 2) {
       setSearching(true);
       try {
-        const users = await authService.searchUsers(query);
-        setSearchResults(users);
+        // Parallel: Trie autocomplete (O(k)) + DB search
+        const [trieResult, users] = await Promise.all([
+          bankingService.getAutocomplete(query).catch(() => ({ data: [] })),
+          authService.searchUsers(query)
+        ]);
+        const trieSuggestions = (trieResult?.data || []).map(s => ({
+          ...s,
+          id: s.id,
+          full_name: s.name,
+          upi_id: s.upi,
+          _source: 'trie'
+        }));
+        // Deduplicate: Trie results first, then DB results not already in Trie set
+        const trieUpis = new Set(trieSuggestions.map(s => s.upi_id));
+        const merged = [
+          ...trieSuggestions,
+          ...users.filter(u => !trieUpis.has(u.upi_id))
+        ];
+        setSearchResults(merged);
       } catch (err) {
         console.error("Discovery failed:", err);
       } finally {

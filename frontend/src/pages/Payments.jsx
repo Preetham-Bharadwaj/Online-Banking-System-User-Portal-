@@ -81,7 +81,7 @@ const Payments = () => {
       setError(null);
       try {
          const receiverUpi = scanPayment?.pa || selectedRecipient?.upi_id || selectedRecipient?.upi;
-         
+
          if (!receiverUpi) {
             throw new Error("No recipient selected");
          }
@@ -132,8 +132,19 @@ const Payments = () => {
             try {
                const query = searchQuery.toLowerCase();
 
-               // 1. Fetch real users from Global Directory
-               const globalUsers = await authService.searchUsers(query);
+               // 1. Parallel: Trie autocomplete (O(k)) + Global Directory DB search
+               const [trieResult, globalUsers] = await Promise.all([
+                  bankingService.getAutocomplete(query).catch(() => ({ data: [] })),
+                  authService.searchUsers(query)
+               ]);
+
+               // Map Trie results to match global user shape
+               const trieSuggestions = (trieResult?.data || []).map(s => ({
+                  id: s.id,
+                  full_name: s.name,
+                  upi_id: s.upi,
+                  _source: 'trie'
+               }));
 
                // 2. Filter local beneficiaries
                const localContacts = beneficiaries
@@ -145,9 +156,16 @@ const Payments = () => {
                      color: 'bg-primary-600'
                   }));
 
+               // 3. Merge: Trie first, then DB results not already in Trie set, minus local contacts
+               const trieUpis = new Set(trieSuggestions.map(s => s.upi_id));
+               const mergedGlobal = [
+                  ...trieSuggestions,
+                  ...globalUsers.filter(gu => !trieUpis.has(gu.upi_id))
+               ].filter(gu => !localContacts.some(lc => lc.upi_id === gu.upi_id));
+
                setSearchResults({
                   contacts: localContacts,
-                  global: globalUsers.filter(gu => !localContacts.some(lc => lc.upi_id === gu.upi_id)),
+                  global: mergedGlobal,
                   services: secondaryActions.filter(s => s.label.toLowerCase().includes(query))
                });
             } catch (err) {

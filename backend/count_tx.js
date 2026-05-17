@@ -1,0 +1,18 @@
+const { createClient } = require('@supabase/supabase-js');
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../OBS-Admin/.env') });
+
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+async function count() {
+    const { count, error } = await supabase
+        .from('transactions')
+        .select('*', { count: 'exact', head: true });
+    
+    if (error) console.error(error);
+    else console.log('Total transactions:', count);
+}
+
+count();

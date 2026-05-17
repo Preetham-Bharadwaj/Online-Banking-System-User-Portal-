@@ -496,6 +496,8 @@ const AdvisoryTab = ({ categories, transactions, balance, isLoading, onOpenModal
   const advisory = useMemo(() => genAdvisory(balance, snap.totalIncome, snap.totalExpense, categories), [balance, snap, categories]);
   const savingsRatio = snap.totalIncome > 0 ? (snap.totalIncome - snap.totalExpense) / snap.totalIncome : 0;
 
+  const [dsaAnalytics, setDsaAnalytics] = useState(null);
+
   const [goals, setGoals] = useState([
     { id: 1, name: 'Emergency Fund', target: 100000, icon: ShieldCheck, color: '#10b981' },
     { id: 2, name: 'Vacation Fund', target: 50000, icon: Calendar, color: '#6366f1' },
@@ -503,6 +505,13 @@ const AdvisoryTab = ({ categories, transactions, balance, isLoading, onOpenModal
   ]);
   const [editingGoal, setEditingGoal] = useState(null);
   const [editTarget, setEditTarget] = useState('');
+
+  // Fetch DP/Greedy analytics from backend optimization engine
+  useEffect(() => {
+    bankingService.getDSAAnalytics()
+      .then(res => setDsaAnalytics(res?.data || null))
+      .catch(err => console.error('DSA analytics fetch failed:', err));
+  }, []);
 
   const advColors = {
     investment: { bg: 'bg-emerald-50', border: 'border-emerald-100', icon: 'bg-emerald-100 text-emerald-600', btn: 'bg-emerald-600 hover:bg-emerald-700 text-white' },
@@ -555,6 +564,79 @@ const AdvisoryTab = ({ categories, transactions, balance, isLoading, onOpenModal
           })}
         </div>
       </div>
+
+      {/* DSA Engine Insights — DP Forecast + Greedy Optimization */}
+      {dsaAnalytics && (
+        <div className="bg-white rounded-[2.5rem] p-8 lg:p-10 border border-slate-50 shadow-sm">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+              <Sparkles size={20} />
+            </div>
+            <div>
+              <h3 className="font-black text-slate-900 text-lg tracking-tight">DSA Engine Insights</h3>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Greedy optimization + DP forecast</p>
+            </div>
+          </div>
+          <div className="space-y-6">
+            {/* DP Spending Forecast */}
+            {dsaAnalytics.spending_forecast && dsaAnalytics.spending_forecast.length > 0 && (
+              <div className="p-6 bg-indigo-50 border border-indigo-100 rounded-2xl">
+                <div className="flex items-center gap-3 mb-3">
+                  <TrendingUp size={18} className="text-indigo-600" />
+                  <p className="text-[10px] font-black text-indigo-900 uppercase tracking-widest">DP Spending Forecast</p>
+                </div>
+                <p className="text-3xl font-black text-indigo-700 tracking-tight">
+                  {fmt(dsaAnalytics.spending_forecast[0])}
+                </p>
+                <p className="text-[11px] font-bold text-indigo-400 mt-1">Predicted next month spending (moving average)</p>
+              </div>
+            )}
+
+            {/* Greedy Budget Optimization */}
+            {dsaAnalytics.budget_optimization && dsaAnalytics.budget_optimization.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Budget Optimization (Greedy)</p>
+                {dsaAnalytics.budget_optimization.filter(o => o.recommendation !== 'On track').slice(0, 4).map((opt, i) => (
+                  <div key={i} className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex items-center gap-4">
+                    <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                      <Lightbulb size={14} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] font-black text-slate-900">{opt.category || 'General'}</p>
+                      <p className="text-[11px] font-medium text-slate-500">{opt.recommendation}</p>
+                    </div>
+                    {opt.potential_savings > 0 && (
+                      <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-xl shrink-0">
+                        Save {fmt(opt.potential_savings)}
+                      </span>
+                    )}
+                  </div>
+                ))}
+                {dsaAnalytics.budget_optimization.filter(o => o.recommendation === 'On track').length > 0 && (
+                  <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3">
+                    <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                    <p className="text-[11px] font-bold text-emerald-700">
+                      {dsaAnalytics.budget_optimization.filter(o => o.recommendation === 'On track').length} categories on track
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Backend Insights */}
+            {dsaAnalytics.insights && dsaAnalytics.insights.length > 0 && (
+              <div className="space-y-2">
+                {dsaAnalytics.insights.map((insight, i) => (
+                  <div key={i} className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center gap-3">
+                    <Activity size={14} className="text-slate-400 shrink-0" />
+                    <p className="text-[11px] font-bold text-slate-600">{insight}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Investment Recommendations */}
       <div className="bg-white rounded-[2.5rem] p-8 lg:p-10 border border-slate-50 shadow-sm">

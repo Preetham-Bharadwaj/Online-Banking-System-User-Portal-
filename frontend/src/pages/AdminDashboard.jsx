@@ -18,11 +18,13 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { adminService } from '../services/adminService';
+import { bankingService } from '../services/bankingService';
 
 const AdminDashboard = () => {
   const [metrics, setMetrics] = useState(null);
   const [users, setUsers] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [fraudData, setFraudData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -33,14 +35,18 @@ const AdminDashboard = () => {
   const fetchAdminData = async () => {
     try {
       setLoading(true);
-      const [metricsData, usersData, txData] = await Promise.all([
+      const [metricsData, usersData, sortedTxResult, fraudResult] = await Promise.all([
         adminService.getMetrics(),
         adminService.getUsers(),
-        adminService.getTransactions()
+        bankingService.getSortedTransactions().catch(() => ({ data: [] })),
+        bankingService.getFraudAnalysis().catch(() => ({ data: { suspicious_cycles: [] } }))
       ]);
       setMetrics(metricsData);
       setUsers(usersData);
-      setTransactions(txData);
+      // Merge Sort O(n log n) — transactions arrive pre-sorted by date
+      setTransactions(sortedTxResult?.data || []);
+      // Graph DFS O(V+E) — circular transfer fraud detection
+      setFraudData(fraudResult?.data || { suspicious_cycles: [] });
     } catch (error) {
       console.error("Admin data fetch failed:", error);
     } finally {
@@ -237,25 +243,39 @@ const AdminDashboard = () => {
                 </div>
              </div>
 
-             {/* System Performance */}
+             {/* Fraud Detection — Graph DFS O(V+E) */}
              <div className="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm space-y-6">
-                <h3 className="font-black text-slate-400 uppercase tracking-widest text-[9px] px-1">Performance Benchmarks</h3>
+                <div className="flex items-center justify-between px-1">
+                   <h3 className="font-black text-slate-400 uppercase tracking-widest text-[9px]">Fraud Detection</h3>
+                   <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${fraudData?.suspicious_cycles?.length > 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                      {fraudData?.suspicious_cycles?.length > 0 ? '⚠ Alert' : '✓ Clean'}
+                   </span>
+                </div>
                 <div className="space-y-4">
-                   {[
-                     { label: 'API Response', value: '124ms', color: 'bg-emerald-500', w: '85%' },
-                     { label: 'Database Load', value: '12%', color: 'bg-primary-500', w: '12%' },
-                     { label: 'Network Ingress', value: '4.2GB', color: 'bg-indigo-500', w: '45%' }
-                   ].map((item, i) => (
-                      <div key={i} className="space-y-2">
-                         <div className="flex justify-between items-center">
-                            <span className="text-[10px] font-black text-slate-900 uppercase tracking-tight">{item.label}</span>
-                            <span className="text-[10px] font-black text-slate-400">{item.value}</span>
-                         </div>
-                         <div className="h-1.5 w-full bg-slate-50 rounded-full overflow-hidden">
-                            <div className={`h-full ${item.color} rounded-full`} style={{ width: item.w }}></div>
-                         </div>
+                   <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg ${fraudData?.suspicious_cycles?.length > 0 ? 'bg-rose-500' : 'bg-emerald-500'}`}>
+                         <ShieldAlert size={20} />
                       </div>
-                   ))}
+                      <div>
+                         <p className="text-[13px] font-black text-slate-900">{fraudData?.suspicious_cycles?.length || 0} Cycles Detected</p>
+                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Circular transfer analysis (DFS)</p>
+                      </div>
+                   </div>
+                   {fraudData?.suspicious_cycles?.length > 0 ? (
+                      <div className="space-y-2">
+                         {fraudData.suspicious_cycles.slice(0, 3).map((cycle, i) => (
+                            <div key={i} className="p-3 bg-rose-50 border border-rose-100 rounded-xl">
+                               <p className="text-[10px] font-black text-rose-700">Cycle {i + 1}: {cycle.length} nodes involved</p>
+                               <p className="text-[9px] font-bold text-rose-400 mt-0.5 truncate">{cycle.slice(0, 3).join(' → ')}…</p>
+                            </div>
+                         ))}
+                         {fraudData.suspicious_cycles.length > 3 && (
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">+{fraudData.suspicious_cycles.length - 3} more cycles</p>
+                         )}
+                      </div>
+                   ) : (
+                      <p className="text-[11px] font-bold text-slate-400 text-center py-2">No circular transfers detected. All clear.</p>
+                   )}
                 </div>
              </div>
 
