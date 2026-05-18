@@ -2,7 +2,7 @@ import sys
 
 path = r"c:\Users\ASUS\OneDrive\Documents\GitHub\online-banking-system\frontend\src\pages\Analytics.jsx"
 
-code = r"""// VERTEX BANK - INTELLIGENCE CENTER (ANALYTICS)
+code = r"""// Finova Bank- INTELLIGENCE CENTER (ANALYTICS)
 // Complete Production File
 
 import { useState, useMemo, useEffect, useCallback } from 'react';

@@ -6,6 +6,7 @@ const { protect } = require('../middleware/auth.middleware');
 router.post('/upi-transfer', protect, paymentController.upiTransfer);
 router.post('/scan-pay', protect, paymentController.scanPay);
 router.post('/setup-pin', protect, paymentController.setupPin);
+router.post('/verify-pin', protect, paymentController.verifyPin);
 router.get('/qr-details', protect, paymentController.getQrDetails);
 
 module.exports = router;

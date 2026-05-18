@@ -9,7 +9,8 @@ import {
   BarChart3,
   UserCircle,
   ChevronDown,
-  ShieldCheck
+  ShieldCheck,
+  BookOpen
 } from 'lucide-react';
 
 

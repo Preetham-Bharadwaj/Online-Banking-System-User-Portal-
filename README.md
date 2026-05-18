@@ -36,9 +36,6 @@ online-banking-system/
 │   └── app.js       # Express application setup
 │
 ├── database/        # SQL schema, migrations, seed files
-├── docs/            # API docs + architecture docs
-└── shared/          # Shared constants/types/helpers
-```
 
 ## 🚀 Getting Started
 

@@ -1,13 +1,24 @@
 const supabase = require('../config/supabase');
+const bcrypt = require('bcrypt');
 const generateReferenceNumber = () => `FIN${Date.now()}${Math.floor(1000 + Math.random() * 9000)}`;
 const normalizePin = (pin) => String(pin ?? '').replace(/\D/g, '');
 const getStoredUpiPin = (user) => user?.upi_pin || '';
 
-const verifyUpiPin = (inputPin, storedPin) => {
+const verifyUpiPin = async (inputPin, storedPin) => {
   const normalizedPin = normalizePin(inputPin);
 
   if (!normalizedPin || !storedPin) {
     return false;
+  }
+
+  // Check if stored pin is a bcrypt hash
+  const isBcrypt = /^\$2[aby]\$/.test(storedPin);
+  if (isBcrypt) {
+    try {
+      return await bcrypt.compare(normalizedPin, storedPin);
+    } catch (e) {
+      return false;
+    }
   }
 
   return normalizedPin === String(storedPin);
@@ -67,7 +78,7 @@ const processUpiTransfer = async (req, res, next, { paymentType, defaultNote }) 
     console.log('Verifying PIN for user:', req.user.email);
     console.log('Database PIN exists:', !!storedPin);
 
-    const isMatch = verifyUpiPin(normalizedPin, storedPin);
+    const isMatch = await verifyUpiPin(normalizedPin, storedPin);
     console.log('PIN Match Result:', isMatch);
 
     if (!isMatch) {
@@ -237,6 +248,41 @@ exports.getQrDetails = async (req, res, next) => {
       full_name: user.full_name,
       qr_string: `upi://pay?pa=${upi_id}&pn=${encodeURIComponent(user.full_name)}&cu=INR`
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.verifyPin = async (req, res, next) => {
+  try {
+    const { pin } = req.body;
+    const userId = req.user.id;
+
+    if (!pin) {
+      return res.status(400).json({ error: 'PIN is required' });
+    }
+
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('upi_pin')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const storedPin = user.upi_pin;
+    if (!storedPin) {
+      return res.status(400).json({ error: 'UPI PIN not set' });
+    }
+
+    const isMatch = await verifyUpiPin(pin, storedPin);
+    if (!isMatch) {
+      return res.status(400).json({ error: 'Incorrect UPI PIN' });
+    }
+
+    return res.status(200).json({ message: 'PIN verified successfully' });
   } catch (error) {
     next(error);
   }

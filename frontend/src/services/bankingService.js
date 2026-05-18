@@ -66,6 +66,11 @@ export const bankingService = {
     return response.data;
   },
 
+  deposit: async (depositData) => {
+    const response = await api.post('/banking/deposit', depositData);
+    return response.data;
+  },
+
   scanPay: async (paymentData) => {
     const response = await api.post('/payments/scan-pay', paymentData);
     return response.data;
@@ -73,6 +78,11 @@ export const bankingService = {
 
   setupPin: async (pin) => {
     const response = await api.post('/payments/setup-pin', { pin });
+    return response.data;
+  },
+
+  verifyPin: async (pin) => {
+    const response = await api.post('/payments/verify-pin', { pin });
     return response.data;
   },
 

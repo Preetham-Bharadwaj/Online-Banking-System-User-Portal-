@@ -20,24 +20,51 @@ import {
    CreditCard,
    Bell,
    Calendar,
-   MoreHorizontal
+   MoreHorizontal,
+   X,
+   RefreshCcw,
+   Trash2,
+   Edit,
+   Sparkles,
+   Star,
+   Heart,
+   PlusCircle,
+   ChevronRight,
+   Check,
+   Tv,
+   Droplet,
+   Flame,
+   Wifi,
+   Car
 } from 'lucide-react';
 import ContactAvatar from '../components/ContactAvatar';
 import { useLocation } from 'react-router-dom';
 import { useQR } from '../context/QRContext';
 import PaymentFlows from '../components/PaymentFlows';
-import { X, RefreshCcw } from 'lucide-react';
-
 import useStore from '../store/useStore';
 import { bankingService } from '../services/bankingService';
 import authService from '../services/authService';
+import { supabase } from '../utils/supabaseClient';
 
 const Payments = () => {
    const { openScanner } = useQR();
    const location = useLocation();
-   const { balance, recentTransactions, beneficiaries, isLoading, setLoading, setError, setBankingData, activeAccount, cards, bills, platformUsers } = useStore();
+   const { 
+     balance, 
+     recentTransactions, 
+     beneficiaries, 
+     isLoading, 
+     setLoading, 
+     setError, 
+     setBankingData, 
+     activeAccount, 
+     cards, 
+     bills, 
+     platformUsers,
+     user
+   } = useStore();
 
-
+   // Core Scan QR Payment States
    const [scanPayment, setScanPayment] = useState(null);
    const [amount, setAmount] = useState('');
    const [note, setNote] = useState('');
@@ -45,15 +72,35 @@ const Payments = () => {
    const [showSuccess, setShowSuccess] = useState(false);
    const [paymentStep, setPaymentStep] = useState(1); // 1: Amount, 2: PIN
    const [upiPin, setUpiPin] = useState('');
-
    const [txReference, setTxReference] = useState('');
+   const [localError, setLocalError] = useState(null);
 
-   // New States for refactored functionality
+   // Redesign Interaction States
    const [activeFlow, setActiveFlow] = useState(null);
    const [searchQuery, setSearchQuery] = useState('');
    const [isSearching, setIsSearching] = useState(false);
    const [searchResults, setSearchResults] = useState(null);
    const [selectedRecipient, setSelectedRecipient] = useState(null);
+
+   // Add Beneficiary Modal States
+   const [isAddingBeneficiary, setIsAddingBeneficiary] = useState(false);
+   const [newBeneName, setNewBeneName] = useState('');
+   const [newBeneUpi, setNewBeneUpi] = useState('');
+   const [newBeneAcc, setNewBeneAcc] = useState('');
+   const [newBeneIfsc, setNewBeneIfsc] = useState('');
+   const [newBeneNick, setNewBeneNick] = useState('');
+   const [beneLoading, setBeneLoading] = useState(false);
+
+   // Edit Schedule Modal States
+   const [isEditingSchedule, setIsEditingSchedule] = useState(false);
+   const [editingScheduleData, setEditingScheduleData] = useState(null);
+   const [editAmount, setEditAmount] = useState('');
+   const [editDueDate, setEditDueDate] = useState('');
+   const [editProvider, setEditProvider] = useState('');
+   const [editLoading, setEditLoading] = useState(false);
+
+   // Dynamic Transaction Filter State
+   const [txFilter, setTxFilter] = useState('ALL'); // ALL, CREDITS, DEBITS
 
    useEffect(() => {
       if (location.state?.flow === 'scan' && location.state?.receiver) {
@@ -64,21 +111,20 @@ const Payments = () => {
       if (location.state?.recipient) {
          setSelectedRecipient(location.state.recipient);
          setActiveFlow('UPI ID / Phone');
-         // Clear state to prevent re-opening on back button
          window.history.replaceState({}, document.title);
       }
    }, [location.state]);
 
+   // Core Scan QR Payment execution
    const handlePaymentSubmit = async (e) => {
       e.preventDefault();
-
       if (paymentStep === 1) {
          setPaymentStep(2);
          return;
       }
 
       setIsProcessing(true);
-      setError(null);
+      setLocalError(null);
       try {
          const receiverUpi = scanPayment?.pa || selectedRecipient?.upi_id || selectedRecipient?.upi;
 
@@ -90,18 +136,15 @@ const Payments = () => {
             receiverUpi: receiverUpi,
             amount: parseFloat(amount),
             pin: upiPin,
-            note
+            note: note || 'QR Purchase'
          };
 
-         const response = scanPayment
-            ? await bankingService.scanPay(paymentPayload)
-            : await bankingService.upiTransfer(paymentPayload);
+         const response = await bankingService.scanPay(paymentPayload);
 
          if (response.reference) {
             setTxReference(response.reference);
          }
 
-         // Refresh data after payment
          const updatedData = await bankingService.getDashboardData();
          setBankingData(updatedData);
 
@@ -115,9 +158,9 @@ const Payments = () => {
             setUpiPin('');
             setPaymentStep(1);
             setTxReference('');
-         }, 5000);
+         }, 4000);
       } catch (err) {
-         setError(err.response?.data?.error || err.message || "Payment failed.");
+         setLocalError(err.response?.data?.error || err.message || "Payment failed.");
          setIsProcessing(false);
          if (err.response?.data?.error?.includes('PIN')) {
             setPaymentStep(2);
@@ -125,6 +168,7 @@ const Payments = () => {
       }
    };
 
+   // Live Search Dropdown discovery
    useEffect(() => {
       if (searchQuery.length > 1) {
          setIsSearching(true);
@@ -132,13 +176,11 @@ const Payments = () => {
             try {
                const query = searchQuery.toLowerCase();
 
-               // 1. Parallel: Trie autocomplete (O(k)) + Global Directory DB search
                const [trieResult, globalUsers] = await Promise.all([
                   bankingService.getAutocomplete(query).catch(() => ({ data: [] })),
                   authService.searchUsers(query)
                ]);
 
-               // Map Trie results to match global user shape
                const trieSuggestions = (trieResult?.data || []).map(s => ({
                   id: s.id,
                   full_name: s.name,
@@ -146,17 +188,15 @@ const Payments = () => {
                   _source: 'trie'
                }));
 
-               // 2. Filter local beneficiaries
                const localContacts = beneficiaries
                   .filter(f => f.beneficiary_name.toLowerCase().includes(query) || f.upi_id?.toLowerCase().includes(query))
                   .map(f => ({
                      ...f,
                      name: f.beneficiary_name,
-                     avatar: (f.beneficiary_name || 'U').substring(0, 1).toUpperCase(),
-                     color: 'bg-primary-600'
+                     avatar: (f.beneficiary_name || 'U').substring(0, 2).toUpperCase(),
+                     color: 'bg-indigo-600'
                   }));
 
-               // 3. Merge: Trie first, then DB results not already in Trie set, minus local contacts
                const trieUpis = new Set(trieSuggestions.map(s => s.upi_id));
                const mergedGlobal = [
                   ...trieSuggestions,
@@ -166,136 +206,244 @@ const Payments = () => {
                setSearchResults({
                   contacts: localContacts,
                   global: mergedGlobal,
-                  services: secondaryActions.filter(s => s.label.toLowerCase().includes(query))
+                  services: [
+                    ...primaryActions.filter(p => p.label.toLowerCase().includes(query)),
+                    ...secondaryActions.filter(s => s.label.toLowerCase().includes(query))
+                  ]
                });
             } catch (err) {
                console.error("Search failed:", err);
             } finally {
                setIsSearching(false);
             }
-         }, 400);
+         }, 300);
          return () => clearTimeout(timer);
       } else {
          setSearchResults(null);
       }
    }, [searchQuery, beneficiaries]);
 
+   // Create New Beneficiary directly to database
+   const handleAddBeneficiary = async (e) => {
+      e.preventDefault();
+      setBeneLoading(true);
+      setLocalError(null);
+      try {
+         await bankingService.addBeneficiary({
+            beneficiary_name: newBeneName,
+            upi_id: newBeneUpi,
+            account_number: newBeneAcc || null,
+            ifsc_code: newBeneIfsc || null,
+            nickname: newBeneNick || newBeneName
+         });
 
-   const recentPayments = recentTransactions.length > 0 ? recentTransactions.slice(0, 4).map(tx => ({
-      id: tx.id,
-      name: tx.description,
-      amount: tx.amount,
-      date: new Date(tx.created_at).toLocaleDateString(),
-      type: tx.payment_method || 'UPI',
-      avatar: (tx.description || 'TX').substring(0, 2).toUpperCase(),
-      status: tx.status === 'completed' ? 'Success' : tx.status === 'pending' ? 'Pending' : 'Failed'
-   })) : [];
+         const updatedData = await bankingService.getDashboardData();
+         setBankingData(updatedData);
+
+         setIsAddingBeneficiary(false);
+         setNewBeneName('');
+         setNewBeneUpi('');
+         setNewBeneAcc('');
+         setNewBeneIfsc('');
+         setNewBeneNick('');
+      } catch (err) {
+         setLocalError("Failed to register beneficiary. Verify details.");
+      } finally {
+         setBeneLoading(false);
+      }
+   };
+
+   // Cancel Auto-pay / Scheduled Bill from database
+   const handleCancelSchedule = async (billId) => {
+      if (!window.confirm("Are you sure you want to cancel this scheduled payment?")) return;
+      try {
+         const { error } = await supabase
+            .from('bills')
+            .delete()
+            .eq('id', billId);
+
+         if (error) throw error;
+
+         const updatedData = await bankingService.getDashboardData();
+         setBankingData(updatedData);
+      } catch (err) {
+         console.error("Failed to delete bill schedule:", err);
+      }
+   };
+
+   // Open Edit Schedule Panel
+   const openEditSchedule = (bill) => {
+      setEditingScheduleData(bill);
+      setEditAmount(bill.amount);
+      setEditDueDate(bill.due_date);
+      setEditProvider(bill.provider_name);
+      setIsEditingSchedule(true);
+   };
+
+   // Update Schedule in database
+   const handleUpdateSchedule = async (e) => {
+      e.preventDefault();
+      setEditLoading(true);
+      try {
+         const { error } = await supabase
+            .from('bills')
+            .update({
+               amount: parseFloat(editAmount),
+               due_date: editDueDate,
+               provider_name: editProvider
+            })
+            .eq('id', editingScheduleData.id);
+
+         if (error) throw error;
+
+         setIsEditingSchedule(false);
+         const updatedData = await bankingService.getDashboardData();
+         setBankingData(updatedData);
+      } catch (err) {
+         console.error("Failed to update schedule:", err);
+      } finally {
+         setEditLoading(false);
+      }
+   };
+
+   // Normalize transactions
+   const recentPayments = recentTransactions.length > 0 ? recentTransactions.map(tx => {
+      const isCredit = tx.receiver_id === user?.id;
+      return {
+         id: tx.id,
+         name: tx.note || tx.sender_upi || tx.receiver_upi || 'Finova Transfer',
+         amount: tx.amount,
+         date: new Date(tx.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+         type: tx.payment_type || 'UPI',
+         avatar: (tx.note || 'TX').substring(0, 2).toUpperCase(),
+         status: tx.status === 'completed' ? 'Success' : tx.status === 'pending' ? 'Pending' : 'Failed',
+         isCredit
+      };
+   }) : [];
+
+   // Filtered Transactions
+   const filteredPayments = recentPayments.filter(pmt => {
+      if (txFilter === 'CREDITS') return pmt.isCredit;
+      if (txFilter === 'DEBITS') return !pmt.isCredit;
+      return true;
+   });
 
    const favorites = platformUsers.length > 0 ? platformUsers.map(u => ({
       name: u.full_name,
       upi: u.upi_id,
-      avatar: (u.full_name || 'U').substring(0, 1).toUpperCase(),
-      color: 'bg-primary-600'
+      avatar: (u.full_name || 'U').substring(0, 2).toUpperCase(),
+      color: 'bg-[#6366F1]'
    })) : (beneficiaries.length > 0 ? beneficiaries.map(b => ({
       name: b.beneficiary_name,
       upi: b.upi_id,
-      avatar: (b.beneficiary_name || 'U').substring(0, 1).toUpperCase(),
-      color: 'bg-primary-600'
+      avatar: (b.beneficiary_name || 'U').substring(0, 2).toUpperCase(),
+      color: 'bg-[#6366F1]'
    })) : []);
 
-
-   const scheduled = bills.slice(0, 3).map((bill) => ({
+   const scheduled = bills.map((bill) => ({
+      id: bill.id,
       name: bill.provider_name,
-      date: bill.due_date ? new Date(bill.due_date).toLocaleDateString() : 'Due soon',
+      date: bill.due_date ? new Date(bill.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : 'Due soon',
+      due_date: bill.due_date,
       amount: Number(bill.amount || 0),
+      status: bill.status || 'pending',
       icon: Receipt
    }));
 
    const primaryActions = [
-      { icon: Send, label: 'Bank Transfer', color: 'bg-primary-600', desc: 'To any bank a/c' },
-      { icon: ScanIcon, label: 'Scan any QR', color: 'bg-emerald-600', desc: 'Pay merchants' },
-      { icon: Zap, label: 'UPI ID / Phone', color: 'bg-indigo-600', desc: 'Instant transfer' },
-      { icon: Users, label: 'Split & Groups', color: 'bg-violet-600', desc: 'Manage expenses' },
+      { icon: Send, label: 'To Bank Account', color: 'bg-indigo-600 shadow-indigo-100', desc: 'Secure IMPS/NEFT transfers' },
+      { icon: Zap, label: 'To Mobile / UPI', color: 'bg-violet-600 shadow-violet-100', desc: 'Instant VPA transfer' },
+      { icon: ArrowLeftRight, label: 'To Self Account', color: 'bg-emerald-600 shadow-emerald-100', desc: 'Sweep connected funds' },
+      { icon: Users, label: 'Split Expense', color: 'bg-rose-500 shadow-rose-100', desc: 'Settle shared groups' },
    ];
 
    const secondaryActions = [
-      { icon: Smartphone, label: 'Mobile', color: 'bg-rose-500' },
-      { icon: Receipt, label: 'Utilities', color: 'bg-amber-500' },
-      { icon: CreditCard, label: 'Card Bill', color: 'bg-slate-800' },
-      { icon: Zap, label: 'Fastag', color: 'bg-blue-500' },
-      { icon: ShieldCheck, label: 'Insurance', color: 'bg-emerald-600' },
+      { icon: Smartphone, label: 'Mobile Recharge', color: 'bg-rose-50' },
+      { icon: Tv, label: 'DTH Recharge', color: 'bg-slate-50' },
+      { icon: Zap, label: 'Electricity', color: 'bg-amber-50' },
+      { icon: Droplet, label: 'Water', color: 'bg-sky-50' },
+      { icon: Flame, label: 'Gas', color: 'bg-orange-50' },
+      { icon: Wifi, label: 'Broadband', color: 'bg-indigo-50' },
+      { icon: Car, label: 'FASTag', color: 'bg-blue-50' },
+      { icon: Plus, label: 'Utilities', color: 'bg-purple-50' }
    ];
 
    const getStatusChip = (status) => {
       switch (status) {
-         case 'Success': return <span className="flex items-center gap-1 text-[8px] font-black text-emerald-500 uppercase bg-emerald-50 px-1.5 py-0.5 rounded-md"><CheckCircle2 size={10} /> {status}</span>;
-         case 'Pending': return <span className="flex items-center gap-1 text-[8px] font-black text-amber-500 uppercase bg-amber-50 px-1.5 py-0.5 rounded-md"><Clock size={10} /> {status}</span>;
-         case 'Failed': return <span className="flex items-center gap-1 text-[8px] font-black text-rose-500 uppercase bg-rose-50 px-1.5 py-0.5 rounded-md"><AlertCircle size={10} /> {status}</span>;
+         case 'Success': return <span className="flex items-center gap-1 text-[8px] font-black text-emerald-500 bg-emerald-50/50 px-2 py-0.5 rounded-full"><CheckCircle2 size={9} /> SUCCESS</span>;
+         case 'Pending': return <span className="flex items-center gap-1 text-[8px] font-black text-amber-500 bg-amber-50/50 px-2 py-0.5 rounded-full"><Clock size={9} /> PENDING</span>;
+         case 'Failed': return <span className="flex items-center gap-1 text-[8px] font-black text-rose-500 bg-rose-50/50 px-2 py-0.5 rounded-full"><AlertCircle size={9} /> FAILED</span>;
          default: return null;
       }
    };
 
    return (
       <div className="min-h-screen bg-[#F8FAFC]">
-         <div className="max-w-[1400px] mx-auto px-6 lg:px-12 pb-24 pt-6 space-y-10 animate-fadeIn relative">
+         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-12 pb-24 pt-6 space-y-8 animate-fadeIn relative">
 
-            {/* 1. Mobile-only Floating Action Button */}
+            {/* Floating QR Quick Scanner for Mobile */}
             <motion.button
                whileHover={{ scale: 1.05 }}
                whileTap={{ scale: 0.95 }}
                onClick={openScanner}
-               className="lg:hidden fixed bottom-24 right-6 w-14 h-14 bg-primary-600 text-white rounded-full shadow-2xl flex items-center justify-center z-50 border-4 border-white"
+               className="lg:hidden fixed bottom-24 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center z-50 border-4 border-white"
             >
                <ScanIcon size={24} />
             </motion.button>
 
-            {/* 2. Top Navigation Utility Bar (Refined Desktop Density) */}
+            {/* TOP NAVIGATION / BRAND BAR */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-               <div className="space-y-1">
-                  <h1 className="text-2xl lg:text-3xl font-black text-slate-900 tracking-tight leading-none">Payments Hub</h1>
-                  <div className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                     <ShieldCheck size={12} className="text-emerald-500" /> AES-256 Encryption Active
+               <div className="space-y-1.5">
+                  <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none">Payments Hub</h1>
+                  <div className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                     <ShieldCheck size={12} className="text-emerald-500" /> AES-256 SECURED ENVIRONMENT
                   </div>
                </div>
 
-               <div className="flex-1 max-w-2xl flex flex-col relative">
+               {/* Unified Glassmorphic Search Bar */}
+               <div className="flex-1 max-w-xl flex flex-col relative">
                   <div className="relative group">
-                     <Search className={`absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors ${isSearching ? 'text-primary-600 animate-pulse' : 'text-slate-400'}`} size={14} />
+                     <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${isSearching ? 'text-indigo-600 animate-pulse' : 'text-slate-400 group-focus-within:text-indigo-600'}`} size={16} />
                      <input
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Enter name, phone, or UPI ID..."
-                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl lg:rounded-lg focus:border-primary-500/30 focus:ring-4 focus:ring-primary-500/5 text-[12px] font-bold outline-none transition-all shadow-sm"
+                        placeholder="Search contact, UPI ID, vehicle or utility operator..."
+                        className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200/80 rounded-2xl focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 text-xs font-bold outline-none transition-all shadow-sm"
                      />
+                     {searchQuery && (
+                       <button onClick={() => setSearchQuery('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900">
+                         <X size={14} />
+                       </button>
+                     )}
                   </div>
 
-                  {/* Search Results Dropdown */}
+                  {/* Search Results Dropdown Overlay */}
                   <AnimatePresence>
                      {searchResults && (
                         <motion.div
                            initial={{ opacity: 0, y: 10 }}
                            animate={{ opacity: 1, y: 0 }}
                            exit={{ opacity: 0, y: 10 }}
-                           className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 overflow-hidden"
+                           className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-md border border-slate-200 rounded-3xl shadow-2xl z-50 overflow-hidden max-h-[400px] overflow-y-auto no-scrollbar"
                         >
-                           <div className="p-4 space-y-4">
+                           <div className="p-5 space-y-4">
                               {searchResults.contacts.length > 0 && (
                                  <div className="space-y-2">
-                                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest px-1">People</p>
+                                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest px-1">Registered Contacts</p>
                                     <div className="space-y-1">
                                        {searchResults.contacts.map((c, i) => (
                                           <button
                                              key={i}
                                              onClick={() => {
                                                 setSelectedRecipient({ upi: c.upi_id, name: c.beneficiary_name });
-                                                setActiveFlow('UPI ID / Phone');
+                                                setActiveFlow('To Mobile / UPI');
                                                 setSearchQuery('');
                                              }}
-                                             className="w-full flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors text-left"
+                                             className="w-full flex items-center gap-3 p-2.5 hover:bg-slate-50 rounded-xl transition-colors text-left"
                                           >
-                                             <div className={`w-6 h-6 ${c.color} rounded-md text-[8px] flex items-center justify-center text-white font-black`}>{c.avatar}</div>
-                                             <span className="text-[11px] font-bold text-slate-900">{c.name}</span>
+                                             <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-xl text-[10px] flex items-center justify-center font-black">{c.avatar}</div>
+                                             <span className="text-xs font-bold text-slate-900">{c.name}</span>
                                           </button>
                                        ))}
                                     </div>
@@ -303,30 +451,30 @@ const Payments = () => {
                               )}
                               {searchResults.global?.length > 0 && (
                                  <div className="space-y-2">
-                                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest px-1">Global Discovery</p>
+                                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest px-1">Global Directory Discovery</p>
                                     <div className="space-y-1">
                                        {searchResults.global.map((gu, i) => (
                                           <button
                                              key={i}
                                              onClick={() => {
                                                 setSelectedRecipient({ upi: gu.upi_id, name: gu.full_name });
-                                                setActiveFlow('UPI ID / Phone');
+                                                setActiveFlow('To Mobile / UPI');
                                                 setSearchQuery('');
                                              }}
-                                             className="w-full flex items-center justify-between p-2 hover:bg-slate-50 rounded-lg transition-colors text-left group"
+                                             className="w-full flex items-center justify-between p-2.5 hover:bg-slate-50 rounded-xl transition-colors text-left group"
                                           >
                                              <div className="flex items-center gap-3">
-                                                <div className="w-6 h-6 bg-slate-900 rounded-md text-[8px] flex items-center justify-center text-white font-black">
+                                                <div className="w-8 h-8 bg-slate-950 rounded-xl text-[10px] flex items-center justify-center text-white font-black">
                                                    {gu.full_name.substring(0, 2).toUpperCase()}
                                                 </div>
                                                 <div>
-                                                   <p className="text-[11px] font-black text-slate-900 leading-none">{gu.full_name}</p>
+                                                   <p className="text-xs font-black text-slate-900 leading-none">{gu.full_name}</p>
                                                    <p className="text-[9px] font-bold text-slate-400 mt-1">{gu.upi_id}</p>
                                                 </div>
                                              </div>
                                              <div className="flex items-center gap-2">
-                                                {gu.is_verified && <ShieldCheck size={12} className="text-primary-600" />}
-                                                <span className="text-[8px] font-black text-primary-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all">Pay Now</span>
+                                                {gu.is_verified && <ShieldCheck size={12} className="text-indigo-600" />}
+                                                <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all flex items-center gap-0.5">Pay Now <ChevronRight size={10} /></span>
                                              </div>
                                           </button>
                                        ))}
@@ -335,12 +483,12 @@ const Payments = () => {
                               )}
                               {searchResults.services.length > 0 && (
                                  <div className="space-y-2">
-                                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest px-1">Services</p>
+                                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest px-1">Actions & Billers</p>
                                     <div className="space-y-1">
                                        {searchResults.services.map((s, i) => (
-                                          <button key={i} onClick={() => { setActiveFlow(s.label); setSearchQuery(''); }} className="w-full flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors text-left">
-                                             <div className={`w-6 h-6 ${s.color} rounded-md flex items-center justify-center text-white`}><s.icon size={12} /></div>
-                                             <span className="text-[11px] font-bold text-slate-900">{s.label}</span>
+                                          <button key={i} onClick={() => { setActiveFlow(s.label); setSearchQuery(''); }} className="w-full flex items-center gap-3 p-2.5 hover:bg-slate-50 rounded-xl transition-colors text-left">
+                                             <div className={`w-8 h-8 ${s.color || 'bg-slate-100 text-slate-700'} rounded-xl flex items-center justify-center`}><s.icon size={14} /></div>
+                                             <span className="text-xs font-bold text-slate-900">{s.label}</span>
                                           </button>
                                        ))}
                                     </div>
@@ -352,145 +500,190 @@ const Payments = () => {
                   </AnimatePresence>
                </div>
 
-               {/* Compact UPI Widget for Desktop */}
-               <div className="hidden lg:flex items-center gap-3 bg-white px-4 py-2.5 rounded-lg border border-slate-200 shadow-sm">
-                  <div className="w-6 h-6 bg-slate-900 rounded-md flex items-center justify-center text-white font-black text-[9px]">UPI</div>
+               {/* Desktop UPI Identifier Details */}
+               <div className="hidden lg:flex items-center gap-4 bg-white px-5 py-3 rounded-2xl border border-slate-200/60 shadow-sm">
+                  <div className="w-8 h-8 bg-slate-950 text-white rounded-xl flex items-center justify-center font-black text-[9px] tracking-tight">VPA</div>
                   <div>
-                     <p className="text-[10px] font-black text-slate-900 leading-none">{activeAccount?.upi_id || 'upi pending'}</p>
-                     <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">Default ID</p>
+                     <p className="text-xs font-black text-slate-900 leading-none">{activeAccount?.upi_id || 'calculating VPA...'}</p>
+                     <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1.5">Primary UPI Address</p>
                   </div>
-                  <button className="text-[9px] font-black text-primary-600 uppercase tracking-widest hover:underline ml-2">QR</button>
+                  <button onClick={openScanner} className="text-[9px] font-black text-indigo-600 uppercase tracking-widest hover:underline ml-2 flex items-center gap-1">Scan QR <QrCode size={10} /></button>
                </div>
             </div>
 
-            {/* 3. Main Grid Layout */}
+            {/* MAIN TWO-COLUMN DASHBOARD GRID */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
-               {/* Left: Action Grid & History (8 cols) */}
+               {/* LEFT DIVISION: Core payments modules */}
                <div className="lg:col-span-8 space-y-8">
 
-                  {/* Primary Payment Cards (Compact Desktop Proportions) */}
-                  <div className="bg-white p-5 lg:p-7 rounded-2xl border border-slate-200/60 shadow-sm space-y-6">
+                  {/* SEND MONEY ACTION GRID */}
+                  <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200/50 shadow-sm space-y-6">
                      <div className="flex justify-between items-center px-1">
-                        <h3 className="font-black text-slate-400 uppercase tracking-widest text-[9px]">Money Movement</h3>
-                        <button className="text-[9px] font-black text-primary-600 uppercase tracking-widest flex items-center gap-1">
-                           Manage Beneficiaries <ArrowRight size={10} />
+                        <div className="space-y-1">
+                           <h3 className="font-black text-slate-900 text-lg tracking-tight leading-none">Money Movement</h3>
+                           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Instant secure transfers</p>
+                        </div>
+                        <button 
+                          onClick={() => setIsAddingBeneficiary(true)}
+                          className="text-[9px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1.5 hover:underline"
+                        >
+                           <PlusCircle size={12} /> Add Beneficiary
                         </button>
                      </div>
-                     <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         {primaryActions.map((action, i) => (
                            <motion.button
                               key={i}
-                              whileHover={{ y: -4, shadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
+                              whileHover={{ y: -4, boxShadow: '0 12px 20px -8px rgba(99, 102, 241, 0.15)' }}
                               whileTap={{ scale: 0.98 }}
                               onClick={() => {
                                  if (action.label.includes('Scan')) openScanner();
                                  else setActiveFlow(action.label);
                               }}
-                              className="relative p-5 bg-slate-50/50 border border-slate-100 rounded-2xl transition-all flex flex-col items-start gap-4 group overflow-hidden"
+                              className="relative p-5 bg-[#F8FAFC]/60 border border-slate-100 rounded-3xl transition-all flex flex-col items-start gap-4 group overflow-hidden"
                            >
-                              <div className={`w-10 h-10 ${action.color} rounded-xl flex items-center justify-center text-white shadow-lg relative z-10 shrink-0`}>
-                                 <action.icon size={20} />
+                              <div className={`w-10 h-10 ${action.color} rounded-2xl flex items-center justify-center text-white shadow-lg relative z-10 shrink-0`}>
+                                 <action.icon size={18} />
                               </div>
                               <div className="text-left relative z-10">
-                                 <span className="text-[11px] font-black text-slate-900 uppercase tracking-widest block">{action.label}</span>
-                                 <span className="text-[9px] font-bold text-slate-400 leading-tight mt-1 opacity-70 group-hover:opacity-100 transition-opacity">{action.desc}</span>
+                                 <span className="text-xs font-black text-slate-950 uppercase tracking-wider block">{action.label}</span>
+                                 <span className="text-[9px] font-semibold text-slate-400 leading-tight mt-1 block opacity-85 group-hover:opacity-100 transition-opacity">{action.desc}</span>
                               </div>
-                              <div className="absolute top-0 right-0 w-24 h-24 bg-primary-500/5 rounded-full -translate-y-12 translate-x-12 blur-2xl group-hover:bg-primary-500/10 transition-colors"></div>
+                              <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full -translate-y-12 translate-x-12 blur-2xl group-hover:bg-indigo-500/10 transition-colors"></div>
                            </motion.button>
                         ))}
                      </div>
                   </div>
 
-                  {/* Quick Payees Section (Denser) */}
-                  <div className="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm space-y-5">
+                  {/* RECENT CONTACTS CAROUSEL */}
+                  <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200/50 shadow-sm space-y-6">
                      <div className="flex justify-between items-center px-1">
-                        <h3 className="font-black text-slate-400 uppercase tracking-widest text-[9px]">Recent Payees</h3>
-                        <div className="flex bg-slate-50 p-0.5 rounded-lg">
-                           <button className="px-4 py-1.5 bg-white shadow-sm rounded-md text-[9px] font-black text-slate-900 uppercase tracking-widest">All</button>
-                           <button className="px-4 py-1.5 text-[9px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest">Favorites</button>
+                        <div className="space-y-1">
+                           <h3 className="font-black text-slate-900 text-lg tracking-tight leading-none font-bold">Recent Payees</h3>
+                           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Tap to quick transfer</p>
+                        </div>
+                        <div className="flex bg-slate-50 p-0.5 rounded-xl border border-slate-100">
+                           <button className="px-4 py-1.5 bg-white shadow-sm rounded-lg text-[9px] font-black text-slate-950 uppercase tracking-widest">All Contacts</button>
                         </div>
                      </div>
-                     <div className="flex gap-8 overflow-x-auto no-scrollbar scroll-smooth py-2">
-                        {favorites.map((fav, i) => (
-                           <div key={i} onClick={() => {
-                              setActiveFlow('UPI ID / Phone');
-                              setSelectedRecipient({ upi_id: fav.upi, full_name: fav.name });
-                           }}>
-                              <ContactAvatar name={fav.name} avatar={fav.avatar} color={fav.color} />
-                           </div>
 
-                        ))}
-                        <div className="flex flex-col items-center gap-3 shrink-0 group cursor-pointer">
-                           <div className="w-11 h-11 rounded-full border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-300 group-hover:border-primary-400 group-hover:text-primary-600 transition-all bg-white shadow-sm">
+                     <div className="flex gap-6 overflow-x-auto no-scrollbar scroll-smooth py-1">
+                        {/* Add Beneficiary CTA Button Card */}
+                        <div 
+                           onClick={() => setIsAddingBeneficiary(true)}
+                           className="flex flex-col items-center gap-3 shrink-0 group cursor-pointer"
+                        >
+                           <div className="w-12 h-12 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-400 group-hover:border-indigo-400 group-hover:text-indigo-600 transition-all bg-white shadow-sm">
                               <Plus size={20} />
                            </div>
-                           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Add</span>
+                           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">New Payee</span>
                         </div>
+
+                        {favorites.map((fav, i) => (
+                           <div 
+                              key={i} 
+                              onClick={() => {
+                                 setActiveFlow('To Mobile / UPI');
+                                 setSelectedRecipient({ upi_id: fav.upi, full_name: fav.name });
+                              }}
+                              className="cursor-pointer"
+                           >
+                              <ContactAvatar name={fav.name} avatar={fav.avatar} color={fav.color} />
+                           </div>
+                        ))}
                      </div>
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                     {/* Bills & Recharge Section (Compact Desktop) */}
-                     <div className="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm space-y-6">
-                        <h3 className="font-black text-slate-400 uppercase tracking-widest text-[9px] px-1">Digital Services</h3>
-                        <div className="grid grid-cols-5 gap-4">
+                     
+                     {/* SERVICES AND BILLERS GRID */}
+                     <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200/50 shadow-sm space-y-6">
+                        <div className="space-y-1 px-1">
+                           <h3 className="font-black text-slate-900 text-base tracking-tight leading-none font-bold">Utility Hub</h3>
+                           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Pay bills & instant recharges</p>
+                        </div>
+                        
+                        <div className="grid grid-cols-4 gap-4">
                            {secondaryActions.map((item, i) => (
                               <motion.button
                                  key={i}
-                                 whileHover={{ scale: 1.1, y: -2 }}
+                                 whileHover={{ scale: 1.05, y: -2 }}
                                  onClick={() => setActiveFlow(item.label)}
-                                 className="flex flex-col items-center gap-3 group"
+                                 className="flex flex-col items-center gap-2 group cursor-pointer"
                               >
-                                 <div className={`w-11 h-11 ${item.color} rounded-xl flex items-center justify-center text-white shadow-lg transition-all group-hover:rotate-6`}>
-                                    <item.icon size={18} />
+                                 <div className={`w-11 h-11 ${item.color} border border-slate-100 rounded-2xl flex items-center justify-center text-slate-800 shadow-sm transition-all group-hover:bg-indigo-600 group-hover:text-white`}>
+                                    <item.icon size={16} />
                                  </div>
-                                 <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest text-center leading-none truncate w-full">{item.label}</span>
+                                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center leading-none truncate w-full group-hover:text-slate-900">{item.label.split(' ')[0]}</span>
                               </motion.button>
                            ))}
                         </div>
                      </div>
 
-                     {/* Payment Reminder (Dense) */}
-                     <div className="bg-amber-50/50 border border-amber-100 p-6 rounded-2xl flex gap-5 items-start group shadow-sm hover:bg-amber-50 transition-colors">
-                        <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center shrink-0 shadow-lg shadow-amber-200">
+                     {/* HIGH CONTRAST BILL REMINDER BOX */}
+                     <div className="bg-gradient-to-tr from-amber-50/50 to-orange-50/20 border border-amber-100 p-6 sm:p-8 rounded-[2.5rem] flex gap-5 items-start group shadow-sm transition-all relative overflow-hidden">
+                        <div className="absolute right-0 bottom-0 w-24 h-24 bg-amber-500/5 rounded-full blur-xl"></div>
+                        <div className="w-10 h-10 bg-amber-500 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-amber-200">
                            <Bell size={18} />
                         </div>
-                        <div className="space-y-1.5 flex-1">
+                        <div className="space-y-2 flex-1 relative z-10">
                            <div className="flex justify-between items-center">
-                              <h4 className="text-[9px] font-black text-amber-900 uppercase tracking-widest">Action Required</h4>
-                              <button className="text-amber-400 hover:text-amber-600 transition-colors"><X size={14} /></button>
+                              <h4 className="text-[9px] font-black text-amber-900 uppercase tracking-widest leading-none">Auto-Pay Advisory</h4>
                            </div>
-                           <p className="text-[12px] text-amber-800 font-bold leading-relaxed">Electricity bill (₹2,450) due tomorrow.</p>
-                           <button className="text-[9px] font-black text-amber-900 uppercase tracking-[0.2em] hover:underline flex items-center gap-1.5 pt-2">Quick Pay <ArrowRight size={10} /></button>
+                           <p className="text-xs text-amber-800 font-bold leading-relaxed">Your monthly Broadband bill is upcoming soon. Pay now to avoid disruptions.</p>
+                           <button 
+                             onClick={() => setActiveFlow('Broadband')}
+                             className="text-[9px] font-black text-amber-950 uppercase tracking-[0.15em] hover:underline flex items-center gap-1 pt-1.5"
+                           >
+                             Clear Bill Now <ArrowRight size={10} />
+                           </button>
                         </div>
                      </div>
                   </div>
 
-                  {/* Payment History (Dense) */}
-                  <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
-                     <div className="px-6 py-4.5 border-b border-slate-100 flex justify-between items-center bg-slate-50/30">
-                        <h3 className="font-black text-slate-900 text-[11px] uppercase tracking-widest">Transaction Log</h3>
-                        <div className="flex items-center gap-6">
-                           <button className="text-[9px] font-black text-slate-400 hover:text-primary-600 uppercase tracking-widest transition-colors">Filter</button>
-                           <button className="text-[9px] font-black text-slate-400 hover:text-primary-600 uppercase tracking-widest transition-colors">Download</button>
+                  {/* TRANSACTION LOG HISTORY */}
+                  <div className="bg-white rounded-[2.5rem] border border-slate-200/50 shadow-sm overflow-hidden">
+                     <div className="px-8 py-5 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/30">
+                        <div className="space-y-0.5">
+                           <h3 className="font-black text-slate-900 text-sm uppercase tracking-wider font-bold">Transaction Ledgers</h3>
+                           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Real-time ledger entries</p>
+                        </div>
+                        
+                        {/* Credit/Debit Toggle Tabs */}
+                        <div className="flex bg-slate-100/80 p-0.5 rounded-xl border border-slate-200/50">
+                           {['ALL', 'DEBITS', 'CREDITS'].map((filter) => (
+                              <button
+                                 key={filter}
+                                 onClick={() => setTxFilter(filter)}
+                                 className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+                                    txFilter === filter 
+                                       ? 'bg-white text-slate-950 shadow-sm' 
+                                       : 'text-slate-400 hover:text-slate-600'
+                                 }`}
+                              >
+                                 {filter}
+                              </button>
+                           ))}
                         </div>
                      </div>
-                     <div className="divide-y divide-slate-50">
-                        {recentPayments.length > 0 ? recentPayments.map((pmt) => (
-                           <div key={pmt.id} className="flex items-center justify-between px-6 py-4.5 hover:bg-slate-50/50 transition-colors cursor-pointer group">
-                              <div className="flex items-center gap-5 flex-1">
-                                 <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-600 group-hover:bg-primary-50 group-hover:text-primary-600 transition-colors text-[11px] shadow-sm">
+
+                     <div className="divide-y divide-slate-50 max-h-[450px] overflow-y-auto no-scrollbar">
+                        {filteredPayments.length > 0 ? filteredPayments.map((pmt) => (
+                           <div key={pmt.id} className="flex items-center justify-between px-8 py-4.5 hover:bg-slate-50/50 transition-colors cursor-pointer group">
+                              <div className="flex items-center gap-4.5 flex-1 min-w-0">
+                                 <div className={`w-9 h-9 rounded-2xl flex items-center justify-center font-black text-xs shrink-0 text-white shadow-sm ${pmt.isCredit ? 'bg-emerald-600' : 'bg-slate-950'}`}>
                                     {pmt.avatar}
                                  </div>
-                                 <div>
-                                    <p className="font-black text-slate-900 text-[14px] leading-tight">{pmt.name}</p>
-                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 leading-none">{pmt.type} • {pmt.date}</p>
+                                 <div className="min-w-0">
+                                    <p className="font-black text-slate-950 text-sm leading-tight truncate">{pmt.name}</p>
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-1 leading-none">{pmt.type} • {pmt.date}</p>
                                  </div>
                               </div>
-                              <div className="text-right">
-                                 <p className={`font-black text-[14px] leading-tight ${pmt.amount > 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
-                                    {pmt.amount > 0 ? '+' : '-'}₹{Math.abs(pmt.amount).toLocaleString()}
+                              <div className="text-right shrink-0">
+                                 <p className={`font-black text-sm leading-tight ${pmt.isCredit ? 'text-emerald-600' : 'text-slate-950'}`}>
+                                    {pmt.isCredit ? '+' : '-'}₹{Math.abs(pmt.amount).toLocaleString('en-IN')}
                                  </p>
                                  <div className="mt-1.5 flex justify-end">
                                     {getStatusChip(pmt.status)}
@@ -498,88 +691,303 @@ const Payments = () => {
                               </div>
                            </div>
                         )) : (
-                           <div className="p-12 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">No recent transactions</div>
+                           <div className="p-12 text-center text-[10px] font-black text-slate-300 uppercase tracking-widest">No matching ledger entries</div>
                         )}
                      </div>
                   </div>
                </div>
 
-               {/* Right: Insights & Upcoming (4 cols) */}
+               {/* RIGHT DIVISION: Credit Cards, Schedules & security */}
                <div className="lg:col-span-4 space-y-8">
 
-                  {/* Virtual Card Utility (Refined) */}
-                  <div className="bg-slate-900 rounded-[2rem] p-7 text-white relative overflow-hidden group shadow-2xl shadow-slate-200">
-                     <div className="absolute top-0 right-0 w-32 h-32 bg-primary-600/20 rounded-full -translate-y-12 translate-x-12 blur-3xl group-hover:scale-150 transition-transform duration-1000"></div>
+                  {/* HIGH END GLASSMORPHIC CARD */}
+                  <div className="bg-slate-950 rounded-[2.5rem] p-8 text-white relative overflow-hidden group shadow-2xl shadow-indigo-100/50">
+                     <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/20 rounded-full -translate-y-12 translate-x-12 blur-3xl group-hover:scale-150 transition-transform duration-1000"></div>
                      <div className="relative z-10 space-y-6">
                         <div className="flex justify-between items-start">
-                           <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-xl border border-white/5">
-                              <CreditCard size={24} className="text-primary-400" />
+                           <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-xl border border-white/5 shadow-inner">
+                              <CreditCard size={22} className="text-indigo-400" />
                            </div>
                            <div className="text-right">
-                              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 block mb-1">Virtual Proxy</span>
-                              <span className="text-[13px] font-black text-white tracking-widest">•••• {cards[0]?.card_number?.slice(-4) || cards[0]?.masked_card_number?.slice(-4) || '4589'}</span>
+                              <span className="text-[8px] font-black uppercase tracking-[0.25em] text-slate-500 block mb-1">Virtual Proxy Card</span>
+                              <span className="text-xs font-black text-white tracking-widest block">•••• {cards[0]?.card_number?.slice(-4) || '7729'}</span>
                            </div>
                         </div>
+
                         <div className="space-y-1 pt-2">
-                           <p className="text-[14px] font-black tracking-tight leading-none">Instant Proxy Details</p>
-                           <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Single-use secure numbers</p>
+                           <h4 className="text-sm font-black tracking-tight leading-none">Finova Security Proxy</h4>
+                           <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-none mt-1">Single-use secure credentialing</p>
                         </div>
-                        <div className="grid grid-cols-2 gap-3 pt-2">
-                           <button className="py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl font-black text-[9px] uppercase tracking-widest transition-all border border-white/5">Show Details</button>
-                           <button className="py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-xl font-black text-[9px] uppercase tracking-widest transition-all shadow-xl shadow-primary-900/20">Copy Number</button>
+
+                        <div className="grid grid-cols-2 gap-3.5 pt-2">
+                           <button 
+                             onClick={() => alert(`Virtual Card Details:\nNumber: ${cards[0]?.card_number || '4532 9901 8829 7729'}\nCVV: ***\nExpiry: **/**`)}
+                             className="py-3 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-black text-[9px] uppercase tracking-widest transition-all border border-white/5 cursor-pointer"
+                           >
+                             View Details
+                           </button>
+                           <button 
+                             onClick={() => {
+                               navigator.clipboard.writeText(cards[0]?.card_number || '4532990188297729');
+                               alert("Card Number copied to clipboard!");
+                             }}
+                             className="py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-[9px] uppercase tracking-widest transition-all shadow-xl shadow-indigo-950/20 cursor-pointer"
+                           >
+                             Copy Card
+                           </button>
                         </div>
                      </div>
                   </div>
 
-                  {/* Upcoming / Scheduled (Dense) */}
-                  <div className="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm space-y-6">
+                  {/* INTERACTIVE SCHEDULED AUTO-PAY MODULE */}
+                  <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200/50 shadow-sm space-y-6">
                      <div className="flex justify-between items-center px-1">
-                        <h3 className="font-black text-slate-400 uppercase tracking-widest text-[9px]">Scheduled</h3>
-                        <button className="text-[9px] font-black text-primary-600 uppercase tracking-widest hover:underline transition-all">Calendar</button>
+                        <div className="space-y-0.5">
+                           <h3 className="font-black text-slate-900 text-base tracking-tight leading-none font-bold">Auto Pay</h3>
+                           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Scheduled reminders</p>
+                        </div>
+                        <button 
+                          onClick={() => setActiveFlow('Schedule')}
+                          className="text-[9px] font-black text-indigo-600 uppercase tracking-widest hover:underline"
+                        >
+                          Add Plan
+                        </button>
                      </div>
+
                      <div className="space-y-3">
                         {scheduled.length > 0 ? scheduled.map((item, i) => (
-                           <div key={i} className="flex items-center justify-between p-4 bg-slate-50/50 rounded-2xl group hover:bg-slate-100 transition-all cursor-pointer border border-transparent hover:border-slate-100">
-                              <div className="flex items-center gap-4">
-                                 <div className="p-2 bg-white rounded-xl text-slate-400 group-hover:text-primary-600 transition-colors shadow-sm">
+                           <div key={i} className="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-between group hover:border-slate-200 transition-all">
+                              <div className="flex items-center gap-3.5 min-w-0">
+                                 <div className="p-2 bg-white rounded-xl text-slate-400 shadow-inner group-hover:text-indigo-600 shrink-0">
                                     <item.icon size={14} />
                                  </div>
-                                 <div>
-                                    <p className="font-bold text-slate-900 text-[12px] leading-tight">{item.name}</p>
-                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">{item.date}</p>
+                                 <div className="min-w-0">
+                                    <p className="font-black text-slate-950 text-xs leading-none truncate">{item.name}</p>
+                                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider mt-1.5 leading-none">Due: {item.date}</p>
                                  </div>
                               </div>
-                              <p className="font-black text-slate-900 text-[12px]">₹{item.amount.toLocaleString()}</p>
+                              
+                              <div className="text-right flex items-center gap-3">
+                                 <p className="font-black text-slate-950 text-xs">₹{item.amount.toLocaleString('en-IN')}</p>
+                                 
+                                 {/* Custom Actions */}
+                                 <div className="flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                    <button 
+                                      onClick={() => {
+                                        setActiveFlow(item.name);
+                                        setSelectedRecipient({ name: item.name, am: item.amount });
+                                      }}
+                                      className="p-1 hover:bg-emerald-50 text-emerald-600 rounded-md transition-colors"
+                                      title="Pay Now"
+                                    >
+                                       <Check size={12} />
+                                    </button>
+                                    <button 
+                                      onClick={() => openEditSchedule(item)}
+                                      className="p-1 hover:bg-indigo-50 text-indigo-600 rounded-md transition-colors"
+                                      title="Edit Schedule"
+                                    >
+                                       <Edit size={12} />
+                                    </button>
+                                    <button 
+                                      onClick={() => handleCancelSchedule(item.id)}
+                                      className="p-1 hover:bg-rose-50 text-rose-600 rounded-md transition-colors"
+                                      title="Delete Auto-Pay"
+                                    >
+                                       <Trash2 size={12} />
+                                    </button>
+                                 </div>
+                              </div>
                            </div>
                         )) : (
-                           <p className="text-center text-[9px] font-black text-slate-400 uppercase py-4">No scheduled bills</p>
+                           <p className="text-center text-[9px] font-black text-slate-300 uppercase py-6">No scheduled plans found</p>
                         )}
                      </div>
+
                      <button
                         onClick={() => setActiveFlow('Schedule')}
-                        className="w-full py-3.5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-primary-600 transition-all flex items-center justify-center gap-2.5 active:scale-[0.98]"
+                        className="w-full py-4 bg-slate-950 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-indigo-600 transition-all flex items-center justify-center gap-2"
                      >
-                        <Calendar size={14} /> Add Schedule
+                        <Calendar size={14} /> Schedule New Bill
                      </button>
                   </div>
 
-                  {/* Security Insight (NEW) */}
-                  <div className="bg-emerald-50/30 border border-emerald-100/50 p-6 rounded-2xl space-y-4">
+                  {/* SECURITY STAT CHIP */}
+                  <div className="bg-emerald-50/20 border border-emerald-100 p-6 sm:p-7 rounded-[2.5rem] space-y-3.5">
                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-emerald-500 text-white rounded-lg flex items-center justify-center shadow-lg shadow-emerald-100">
+                        <div className="w-8 h-8 bg-emerald-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-emerald-100">
                            <ShieldCheck size={16} />
                         </div>
-                        <h4 className="text-[10px] font-black text-emerald-900 uppercase tracking-widest">Security Safe</h4>
+                        <h4 className="text-[9px] font-black text-emerald-950 uppercase tracking-widest leading-none">Security Limit Certified</h4>
                      </div>
-                     <p className="text-[11px] text-emerald-700 font-bold leading-relaxed">Your payment limit is set to ₹50,000/day for added protection.</p>
-                     <button className="text-[9px] font-black text-emerald-600 uppercase tracking-widest hover:underline">Adjust Limit</button>
+                     <p className="text-xs text-emerald-800 font-bold leading-relaxed">Daily payment threshold is enforced at ₹50,000 for added defense.</p>
+                     <button onClick={() => alert("Daily Limit Settings are secured via default bank parameters.")} className="text-[9px] font-black text-emerald-600 uppercase tracking-widest hover:underline block leading-none">Adjust Threshold</button>
                   </div>
 
                </div>
             </div>
          </div>
 
-         {/* ──────────────────────────── MODALS ──────────────────────────── */}
+         {/* ──────────────────────────── MODALS & OVERLAYS ──────────────────────────── */}
+         
+         {/* 1. SECURE ADD BENEFICIARY MODAL */}
+         <AnimatePresence>
+            {isAddingBeneficiary && (
+               <div className="fixed inset-0 z-[210] flex items-center justify-center p-4">
+                  <motion.div
+                     initial={{ opacity: 0 }}
+                     animate={{ opacity: 1 }}
+                     exit={{ opacity: 0 }}
+                     onClick={() => setIsAddingBeneficiary(false)}
+                     className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
+                  />
+                  <motion.div
+                     initial={{ opacity: 0, scale: 0.95, y: 30 }}
+                     animate={{ opacity: 1, scale: 1, y: 0 }}
+                     exit={{ opacity: 0, scale: 0.95, y: 30 }}
+                     className="relative w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100"
+                  >
+                     <div className="px-8 py-6 border-b border-slate-50 flex items-center justify-between">
+                        <div>
+                           <h3 className="text-lg font-black text-slate-900 tracking-tight leading-none">Add Beneficiary</h3>
+                           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Register new recipient</p>
+                        </div>
+                        <button onClick={() => setIsAddingBeneficiary(false)} className="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-900 transition-colors">
+                           <X size={16} />
+                        </button>
+                     </div>
+
+                     <form onSubmit={handleAddBeneficiary} className="p-8 space-y-4">
+                        <div className="space-y-1">
+                           <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Full Name</label>
+                           <input
+                              required
+                              placeholder="e.g. Preetham Bharadwaj"
+                              className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500 transition-all"
+                              value={newBeneName}
+                              onChange={(e) => setNewBeneName(e.target.value)}
+                           />
+                        </div>
+
+                        <div className="space-y-1">
+                           <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">UPI ID (VPA)</label>
+                           <input
+                              required
+                              placeholder="e.g. user@finova"
+                              className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500 transition-all"
+                              value={newBeneUpi}
+                              onChange={(e) => setNewBeneUpi(e.target.value)}
+                           />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                           <div className="space-y-1">
+                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Account No (Opt)</label>
+                              <input
+                                 placeholder="e.g. 1099283478"
+                                 className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500 transition-all"
+                                 value={newBeneAcc}
+                                 onChange={(e) => setNewBeneAcc(e.target.value)}
+                              />
+                           </div>
+                           <div className="space-y-1">
+                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">IFSC Code (Opt)</label>
+                              <input
+                                 placeholder="e.g. FNVA0001923"
+                                 className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500 transition-all uppercase"
+                                 value={newBeneIfsc}
+                                 onChange={(e) => setNewBeneIfsc(e.target.value)}
+                              />
+                           </div>
+                        </div>
+
+                        <button
+                           type="submit"
+                           disabled={beneLoading || !newBeneName || !newBeneUpi}
+                           className="w-full py-4.5 bg-slate-950 text-white hover:bg-indigo-600 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl transition-all disabled:opacity-50 mt-4"
+                        >
+                           {beneLoading ? <RefreshCcw className="animate-spin mx-auto" size={16} /> : 'Register Beneficiary'}
+                        </button>
+                     </form>
+                  </motion.div>
+               </div>
+            )}
+         </AnimatePresence>
+
+         {/* 2. SECURE EDIT SCHEDULE AUTO-PAY MODAL */}
+         <AnimatePresence>
+            {isEditingSchedule && (
+               <div className="fixed inset-0 z-[210] flex items-center justify-center p-4">
+                  <motion.div
+                     initial={{ opacity: 0 }}
+                     animate={{ opacity: 1 }}
+                     exit={{ opacity: 0 }}
+                     onClick={() => setIsEditingSchedule(false)}
+                     className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
+                  />
+                  <motion.div
+                     initial={{ opacity: 0, scale: 0.95, y: 30 }}
+                     animate={{ opacity: 1, scale: 1, y: 0 }}
+                     exit={{ opacity: 0, scale: 0.95, y: 30 }}
+                     className="relative w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100"
+                  >
+                     <div className="px-8 py-6 border-b border-slate-50 flex items-center justify-between">
+                        <div>
+                           <h3 className="text-lg font-black text-slate-900 tracking-tight leading-none font-bold">Edit Auto-Pay</h3>
+                           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Modify schedule parameters</p>
+                        </div>
+                        <button onClick={() => setIsEditingSchedule(false)} className="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-900 transition-colors">
+                           <X size={16} />
+                        </button>
+                     </div>
+
+                     <form onSubmit={handleUpdateSchedule} className="p-8 space-y-4">
+                        <div className="space-y-1">
+                           <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Provider Name</label>
+                           <input
+                              required
+                              className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500 transition-all"
+                              value={editProvider}
+                              onChange={(e) => setEditProvider(e.target.value)}
+                           />
+                        </div>
+
+                        <div className="space-y-1">
+                           <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Scheduled Amount</label>
+                           <input
+                              required
+                              type="number"
+                              className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500 transition-all"
+                              value={editAmount}
+                              onChange={(e) => setEditAmount(e.target.value)}
+                           />
+                        </div>
+
+                        <div className="space-y-1">
+                           <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Scheduled Date</label>
+                           <input
+                              required
+                              type="date"
+                              className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-500 transition-all"
+                              value={editDueDate}
+                              onChange={(e) => setEditDueDate(e.target.value)}
+                           />
+                        </div>
+
+                        <button
+                           type="submit"
+                           disabled={editLoading || !editAmount || !editDueDate}
+                           className="w-full py-4.5 bg-slate-950 text-white hover:bg-indigo-600 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl transition-all disabled:opacity-50 mt-4"
+                        >
+                           {editLoading ? <RefreshCcw className="animate-spin mx-auto" size={16} /> : 'Save Schedule'}
+                        </button>
+                     </form>
+                  </motion.div>
+               </div>
+            )}
+         </AnimatePresence>
+
+         {/* 3. QR CODE PAYMENT DRAWER / OVERLAY */}
          <AnimatePresence>
             {scanPayment && (
                <div className="fixed inset-0 z-[200] flex items-center justify-center p-0 lg:p-4">
@@ -588,55 +996,70 @@ const Payments = () => {
                      animate={{ opacity: 1 }}
                      exit={{ opacity: 0 }}
                      onClick={() => setScanPayment(null)}
-                     className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+                     className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
                   />
                   <motion.div
                      initial={{ opacity: 0, scale: 0.95, y: 50 }}
                      animate={{ opacity: 1, scale: 1, y: 0 }}
                      exit={{ opacity: 0, scale: 0.95, y: 50 }}
-                     className="relative w-full h-full lg:h-auto lg:max-w-md bg-white rounded-t-[2.5rem] lg:rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col"
+                     className="relative w-full h-full lg:h-auto lg:max-w-md bg-white rounded-t-[2.5rem] lg:rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
                   >
                      {showSuccess ? (
                         <div className="p-12 text-center space-y-6 flex flex-col items-center justify-center min-h-[400px]">
                            <motion.div
                               initial={{ scale: 0.5, opacity: 0 }}
                               animate={{ scale: 1, opacity: 1 }}
-                              className="w-24 h-24 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-2xl shadow-emerald-200"
+                              className="w-20 h-20 bg-emerald-500 text-white rounded-3xl flex items-center justify-center shadow-2xl shadow-emerald-200"
                            >
-                              <CheckCircle2 size={48} />
+                              <CheckCircle2 size={40} />
                            </motion.div>
+                           
                            <div className="space-y-2">
-                              <h2 className="text-2xl font-black text-slate-900 tracking-tight">Payment Successful</h2>
-                              <p className="text-slate-400 font-bold text-[11px] uppercase tracking-widest">Transaction ID: {txReference || 'VRX982103'}</p>
+                              <h2 className="text-xl font-black text-slate-900 tracking-tight leading-none">Payment Successful</h2>
+                              <p className="text-slate-400 font-bold text-[9px] uppercase tracking-widest mt-1">Transaction ID: {txReference || 'VRX982103'}</p>
                            </div>
-                           <div className="p-6 bg-slate-50 rounded-2xl w-full">
-                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Sent To</p>
-                              <p className="text-lg font-black text-slate-900">{scanPayment.pn}</p>
-                              <p className="text-2xl font-black text-primary-600 mt-3">₹{amount}</p>
+
+                           <div className="p-6 bg-slate-50 border border-slate-100 rounded-3xl w-full text-left space-y-4">
+                              <div>
+                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block leading-none mb-1">Paid To</span>
+                                 <p className="text-sm font-black text-slate-950 leading-none">{scanPayment.pn}</p>
+                              </div>
+                              <div className="h-px bg-slate-200/50"></div>
+                              <div>
+                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block leading-none mb-1">Amount Debited</span>
+                                 <p className="text-2xl font-black text-primary-600 leading-none">₹{parseFloat(amount || 0).toLocaleString('en-IN')}</p>
+                              </div>
                            </div>
                         </div>
                      ) : (
                         <>
-                           <div className="p-8 border-b border-slate-50 flex items-center justify-between">
-                              <div className="flex items-center gap-4">
-                                 <div className="w-12 h-12 bg-primary-50 rounded-2xl flex items-center justify-center text-primary-600 font-black text-lg">
-                                    {(scanPayment.pn || 'PY').substring(0, 2).toUpperCase()}
+                           <div className="px-8 py-6 border-b border-slate-50 flex items-center justify-between shrink-0 bg-white sticky top-0 z-10">
+                              <div className="flex items-center gap-3">
+                                 <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center font-black text-xs shrink-0 shadow-sm">
+                                    {(scanPayment.pn || 'QR').substring(0, 2).toUpperCase()}
                                  </div>
                                  <div>
-                                    <h2 className="text-xl font-black text-slate-900 tracking-tight">{scanPayment.pn}</h2>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">{scanPayment.pa}</p>
+                                    <h2 className="text-base font-black text-slate-950 leading-none truncate max-w-[200px]">{scanPayment.pn}</h2>
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1.5 leading-none">{scanPayment.pa}</p>
                                  </div>
                               </div>
-                              <button onClick={() => setScanPayment(null)} className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-900 transition-colors">
-                                 <X size={20} />
+                              <button onClick={() => setScanPayment(null)} className="w-9 h-9 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-900 transition-colors">
+                                 <X size={16} />
                               </button>
                            </div>
 
-                           <form onSubmit={handlePaymentSubmit} className="p-10 space-y-8">
+                           {localError && (
+                             <div className="mx-8 mt-4 p-4.5 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-3">
+                               <AlertCircle size={16} className="text-rose-500 shrink-0" />
+                               <p className="text-[10px] font-black text-rose-600 uppercase tracking-tight">{localError}</p>
+                             </div>
+                           )}
+
+                           <form onSubmit={handlePaymentSubmit} className="p-8 space-y-6">
                               {paymentStep === 1 ? (
                                  <>
-                                    <div className="space-y-4">
-                                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2 block">Amount to Pay</label>
+                                    <div className="space-y-3">
+                                       <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Amount to Transfer</label>
                                        <div className="relative">
                                           <span className="absolute left-6 top-1/2 -translate-y-1/2 text-3xl font-black text-slate-300">₹</span>
                                           <input
@@ -645,28 +1068,32 @@ const Payments = () => {
                                              value={amount}
                                              onChange={(e) => setAmount(e.target.value)}
                                              placeholder="0.00"
-                                             className="w-full pl-14 pr-8 py-8 bg-slate-50 border-2 border-transparent focus:border-primary-500/20 focus:bg-white rounded-[2rem] text-4xl font-black text-slate-900 outline-none transition-all placeholder:text-slate-200"
+                                             className="w-full pl-14 pr-8 py-6 bg-slate-50 border-2 border-transparent focus:border-primary-500/20 focus:bg-white rounded-[2rem] text-4xl font-black text-slate-950 outline-none transition-all placeholder:text-slate-200"
                                           />
                                        </div>
                                     </div>
 
-                                    <div className="space-y-4">
-                                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2 block">Note (Optional)</label>
+                                    <div className="space-y-3">
+                                       <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Note (Optional)</label>
                                        <input
                                           type="text"
                                           value={note}
                                           onChange={(e) => setNote(e.target.value)}
-                                          placeholder="What's this for?"
-                                          className="w-full px-6 py-5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-900 outline-none focus:bg-white transition-all"
+                                          placeholder="e.g. Lunch split, shopping..."
+                                          className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-950 outline-none focus:bg-white transition-all"
                                        />
                                     </div>
                                  </>
                               ) : (
                                  <div className="space-y-6">
-                                    <div className="text-center">
-                                       <h4 className="text-lg font-black text-slate-900">Enter UPI PIN</h4>
-                                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">For Security Verification</p>
+                                    <div className="text-center space-y-2">
+                                       <div className="w-12 h-12 bg-primary-50 rounded-2xl flex items-center justify-center text-primary-600 mx-auto">
+                                          <ShieldCheck size={24} />
+                                       </div>
+                                       <h4 className="text-base font-black text-slate-900 tracking-tight leading-none">Verification PIN</h4>
+                                       <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">Verify to execute transaction</p>
                                     </div>
+                                    
                                     <div className="flex justify-center gap-3">
                                        <input
                                           required
@@ -676,38 +1103,39 @@ const Payments = () => {
                                           onChange={(e) => setUpiPin(e.target.value)}
                                           placeholder="••••••"
                                           autoFocus
-                                          className="w-48 text-center py-6 bg-slate-50 border-2 border-slate-100 focus:border-primary-500/20 focus:bg-white rounded-2xl text-3xl font-black tracking-[0.5em] outline-none transition-all"
+                                          className="w-48 text-center py-5 bg-slate-50 border-2 border-slate-100 focus:border-primary-500/20 focus:bg-white rounded-2xl text-3xl font-black tracking-[0.5em] outline-none transition-all"
                                        />
                                     </div>
+                                    
                                     <button
                                        type="button"
                                        onClick={() => setPaymentStep(1)}
-                                       className="w-full text-[10px] font-black text-primary-600 uppercase tracking-widest"
+                                       className="w-full text-[9px] font-black text-indigo-600 uppercase tracking-widest text-center hover:underline"
                                     >
                                        Back to details
                                     </button>
                                  </div>
                               )}
 
-                              <div className="p-6 bg-primary-50 rounded-[2rem] border border-primary-100 flex items-center gap-4">
-                                 <ShieldCheck size={24} className="text-primary-600" />
+                              <div className="p-4.5 bg-indigo-50/50 rounded-2xl border border-indigo-100/50 flex items-center gap-3.5">
+                                 <ShieldCheck size={20} className="text-indigo-600 shrink-0" />
                                  <div>
-                                    <p className="text-[10px] font-black text-primary-900 uppercase tracking-widest leading-none mb-1">Encrypted Payment</p>
-                                    <p className="text-[11px] text-primary-700 font-bold opacity-80">This transaction is protected by 256-bit encryption.</p>
+                                    <p className="text-[9px] font-black text-indigo-950 uppercase tracking-widest leading-none mb-1">Finova Shield Active</p>
+                                    <p className="text-[10px] text-indigo-700 font-bold opacity-80 leading-normal">This transmission is completely locked and encrypted.</p>
                                  </div>
                               </div>
 
                               <button
-                                 disabled={isProcessing}
-                                 className={`w-full py-6 rounded-[2rem] font-black text-[12px] uppercase tracking-[0.3em] transition-all shadow-2xl flex items-center justify-center gap-3 ${isProcessing ? 'bg-slate-100 text-slate-400' : 'bg-slate-900 text-white hover:bg-primary-600'}`}
+                                 disabled={isProcessing || !amount}
+                                 className="w-full py-5 bg-slate-950 hover:bg-indigo-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                               >
                                  {isProcessing ? (
                                     <>
-                                       <RefreshCcw size={18} className="animate-spin" /> Verifying...
+                                       <RefreshCcw size={14} className="animate-spin animate-infinite" /> Authorizing...
                                     </>
                                  ) : (
                                     <>
-                                       {paymentStep === 1 ? 'Continue' : `Pay ₹${amount || '0'} Securely`}
+                                       {paymentStep === 1 ? 'Continue' : `Pay ₹${parseFloat(amount || 0).toLocaleString('en-IN')} Securely`}
                                     </>
                                  )}
                               </button>
@@ -719,7 +1147,7 @@ const Payments = () => {
             )}
          </AnimatePresence>
 
-         {/* Unified Payment Flows Modal */}
+         {/* Unified Payment Flow drawer/modal */}
          <PaymentFlows
             isOpen={!!activeFlow}
             onClose={() => { setActiveFlow(null); setSelectedRecipient(null); }}
@@ -728,7 +1156,6 @@ const Payments = () => {
          />
 
       </div>
-
    );
 };
 

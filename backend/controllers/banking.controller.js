@@ -215,4 +215,97 @@ exports.initiateTransfer = async (req, res, next) => {
   }
 };
 
+const syncAccountBalance = async (functionName, params) => {
+  try {
+    const { error } = await supabase.rpc(functionName, params);
+    if (error) {
+      console.log('Account update failed', error.message || error);
+    }
+  } catch (error) {
+    console.log('Account update failed', error.message || error);
+  }
+};
+
+exports.deposit = async (req, res, next) => {
+  try {
+    const { amount, note = 'Added Funds' } = req.body;
+    const userId = req.user.id;
+
+    if (!amount || Number(amount) <= 0) {
+      return res.status(400).json({ error: 'Invalid amount' });
+    }
+
+    const depositAmount = Number(amount);
+
+    // Get current user details
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const currentBalance = Number(user.balance || 0);
+    const newBalance = currentBalance + depositAmount;
+
+    // Update user balance
+    const { error: balanceError } = await supabase
+      .from('users')
+      .update({ balance: newBalance })
+      .eq('id', userId);
+
+    if (balanceError) throw balanceError;
+
+    // Sync account balance
+    await syncAccountBalance('increment_account_balance', { 
+      u_id: userId, 
+      amount: depositAmount 
+    });
+
+    const referenceNumber = `FINDEP${Date.now()}${Math.floor(1000 + Math.random() * 9000)}`;
+
+    // Insert transaction
+    const { data: transaction, error: txError } = await supabase
+      .from('transactions')
+      .insert([{
+        transaction_id: referenceNumber,
+        sender_id: null,
+        receiver_id: userId,
+        sender_upi: 'deposit@finova',
+        receiver_upi: user.upi_id,
+        amount: depositAmount,
+        payment_type: 'DEPOSIT',
+        type: 'UPI',
+        status: 'completed',
+        note: note
+      }])
+      .select()
+      .single();
+
+    if (txError) throw txError;
+
+    // Create notification
+    await supabase.from('notifications').insert([{
+      user_id: userId,
+      title: 'Funds Added',
+      message: `₹${depositAmount} has been credited to your account.`,
+      notification_type: 'transaction',
+      is_read: false
+    }]);
+
+    res.status(200).json({
+      success: true,
+      message: 'Deposit successful',
+      balance: newBalance,
+      transaction,
+      reference: referenceNumber
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 

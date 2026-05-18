@@ -9,7 +9,8 @@ const {
   initiateTransfer,
   getBeneficiaries,
   addBeneficiary,
-  updateBudget
+  updateBudget,
+  deposit
 } = require('../controllers/banking.controller');
 const cardController = require('../controllers/card.controller');
 const { protect } = require('../middleware/auth.middleware');
@@ -23,6 +24,7 @@ router.get('/notifications/me', protect, getNotifications);
 
 // --- Transfers & Payments ---
 router.post('/transfer', protect, initiateTransfer);
+router.post('/deposit', protect, deposit);
 router.get('/beneficiaries', protect, getBeneficiaries);
 router.post('/beneficiaries', protect, addBeneficiary);
 
