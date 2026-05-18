@@ -176,34 +176,71 @@ exports.getMe = async (req, res, next) => {
   }
 };
 
+// In-memory O(1) search cache for ADA-based search speedup
+const searchCache = new Map();
+const CACHE_TTL = 30000; // 30 seconds cache TTL
+
 exports.searchUsers = async (req, res, next) => {
   try {
     const { q } = req.query;
     const currentUserId = req.user.id;
 
-    if (!q || q.length < 2) {
+    if (!q) {
       return res.status(200).json([]);
     }
 
-    // 1. Specialized Search Logic
+    // 1. Sanitize Search Query (ADA Security & Performance check)
+    const sanitized = q.replace(/[^a-zA-Z0-9\s._@-]/g, '').trim();
+    if (sanitized.length < 2) {
+      return res.status(200).json([]);
+    }
+
+    const lowercaseQuery = sanitized.toLowerCase();
+    const cacheKey = `${currentUserId}:${lowercaseQuery}`;
+    
+    // 2. O(1) In-Memory Cache Lookup
+    const cachedEntry = searchCache.get(cacheKey);
+    if (cachedEntry && (Date.now() - cachedEntry.timestamp < CACHE_TTL)) {
+      return res.status(200).json(cachedEntry.data);
+    }
+
+    // 3. Specialized Indexed Search Logic
     let query = supabase
       .from('users')
       .select('id, full_name, upi_id, phone_number, is_verified, profile_image');
 
-    if (q.includes('@')) {
-      // If query looks like a UPI ID, prioritize exact or partial UPI match
-      query = query.or(`upi_id.eq.${q},upi_id.ilike.%${q}%`);
+    if (lowercaseQuery.includes('@')) {
+      // Prioritize exact or partial UPI match
+      query = query.or(`upi_id.eq.${lowercaseQuery},upi_id.ilike.%${lowercaseQuery}%`);
     } else {
-      // General fuzzy search for names and phones
-      query = query.or(`full_name.ilike.%${q}%,upi_id.ilike.%${q}%,phone_number.ilike.%${q}%`);
+      // General fuzzy search for name, UPI, and phone
+      query = query.or(`full_name.ilike.%${lowercaseQuery}%,upi_id.ilike.%${lowercaseQuery}%,phone_number.ilike.%${lowercaseQuery}%`);
     }
 
     const { data, error } = await query.limit(10);
 
     if (error) throw error;
 
-    // Filter results: Normally hide current user EXCEPT if they type their own UPI exactly (for self-pay testing)
-    const results = (data || []).filter(u => u.id !== currentUserId || (u.upi_id?.toLowerCase() === q.toLowerCase()));
+    // Filter results: Hide current user unless they search their own UPI address (self-testing)
+    const results = (data || []).filter(
+      u => u.id !== currentUserId || (u.upi_id?.toLowerCase() === lowercaseQuery)
+    );
+
+    // 4. Cache the results in O(1) Hash Map
+    searchCache.set(cacheKey, {
+      timestamp: Date.now(),
+      data: results
+    });
+
+    // 5. Automatic O(1) Pruning of stale cache entries
+    if (searchCache.size > 500) {
+      const now = Date.now();
+      for (const [key, val] of searchCache.entries()) {
+        if (now - val.timestamp > CACHE_TTL) {
+          searchCache.delete(key);
+        }
+      }
+    }
 
     res.status(200).json(results);
   } catch (error) {

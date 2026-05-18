@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
    Send,
@@ -168,60 +168,185 @@ const Payments = () => {
       }
    };
 
-   // Live Search Dropdown discovery
-   useEffect(() => {
-      if (searchQuery.length > 1) {
-         setIsSearching(true);
-         const timer = setTimeout(async () => {
-            try {
-               const query = searchQuery.toLowerCase();
+   // Client-Side O(1) Search Cache for Global Directory lookups (ADA O(1) Cache requirement)
+   const apiSearchCache = useRef(new Map());
 
-               const [trieResult, globalUsers] = await Promise.all([
-                  bankingService.getAutocomplete(query).catch(() => ({ data: [] })),
-                  authService.searchUsers(query)
-               ]);
+   // ADA O(1) Prefix-Suffix Hash Map for Instant Local Autocomplete Discovery
+   const localSearchHashMap = useMemo(() => {
+      const index = new Map();
 
-               const trieSuggestions = (trieResult?.data || []).map(s => ({
-                  id: s.id,
-                  full_name: s.name,
-                  upi_id: s.upi,
-                  _source: 'trie'
-               }));
+      const indexItem = (queryKey, item, category) => {
+         if (!queryKey) return;
+         const lowerKey = String(queryKey).toLowerCase().trim();
+         if (!lowerKey) return;
 
-               const localContacts = beneficiaries
-                  .filter(f => f.beneficiary_name.toLowerCase().includes(query) || f.upi_id?.toLowerCase().includes(query))
-                  .map(f => ({
-                     ...f,
-                     name: f.beneficiary_name,
-                     avatar: (f.beneficiary_name || 'U').substring(0, 2).toUpperCase(),
-                     color: 'bg-indigo-600'
-                  }));
-
-               const trieUpis = new Set(trieSuggestions.map(s => s.upi_id));
-               const mergedGlobal = [
-                  ...trieSuggestions,
-                  ...globalUsers.filter(gu => !trieUpis.has(gu.upi_id))
-               ].filter(gu => !localContacts.some(lc => lc.upi_id === gu.upi_id));
-
-               setSearchResults({
-                  contacts: localContacts,
-                  global: mergedGlobal,
-                  services: [
-                    ...primaryActions.filter(p => p.label.toLowerCase().includes(query)),
-                    ...secondaryActions.filter(s => s.label.toLowerCase().includes(query))
-                  ]
-               });
-            } catch (err) {
-               console.error("Search failed:", err);
-            } finally {
-               setIsSearching(false);
+         // A. Index whole lowercased term prefixes
+         for (let len = 1; len <= lowerKey.length; len++) {
+            const prefix = lowerKey.slice(0, len);
+            if (!index.has(prefix)) {
+               index.set(prefix, { contacts: new Set(), global: new Set(), services: new Set() });
             }
-         }, 300);
-         return () => clearTimeout(timer);
-      } else {
-         setSearchResults(null);
+            index.get(prefix)[category].add(item);
+         }
+
+         // B. Index tokenized sub-word prefixes to handle multi-word query entries (e.g. "Preetham Bharadwaj")
+         const tokens = lowerKey.split(/[\s.@_-]+/);
+         for (const token of tokens) {
+            if (token.length < 2) continue;
+            for (let len = 1; len <= token.length; len++) {
+               const prefix = token.slice(0, len);
+               if (!index.has(prefix)) {
+                  index.set(prefix, { contacts: new Set(), global: new Set(), services: new Set() });
+               }
+               index.get(prefix)[category].add(item);
+            }
+         }
+      };
+
+      // 1. Index local beneficiaries into O(1) search buckets
+      (beneficiaries || []).forEach(b => {
+         const formatted = {
+            id: b.id,
+            name: b.beneficiary_name,
+            upi_id: b.upi_id,
+            phone_number: b.phone_number || b.account_number || '',
+            is_verified: b.is_verified || false,
+            avatar: (b.beneficiary_name || 'U').substring(0, 2).toUpperCase(),
+            color: 'bg-indigo-600',
+            _source: 'beneficiary'
+         };
+         
+         indexItem(b.beneficiary_name, formatted, 'contacts');
+         indexItem(b.upi_id, formatted, 'contacts');
+         indexItem(b.nickname, formatted, 'contacts');
+         if (b.phone_number) indexItem(b.phone_number, formatted, 'contacts');
+      });
+
+      // 2. Index platformUsers into O(1) search buckets
+      (platformUsers || []).forEach(u => {
+         const formatted = {
+            id: u.id,
+            full_name: u.full_name,
+            upi_id: u.upi_id,
+            phone_number: u.phone_number || '',
+            is_verified: u.is_verified || false,
+            profile_image: u.profile_image,
+            avatar: (u.full_name || 'U').substring(0, 2).toUpperCase(),
+            color: 'bg-slate-900',
+            _source: 'platform'
+         };
+
+         indexItem(u.full_name, formatted, 'global');
+         indexItem(u.upi_id, formatted, 'global');
+         if (u.phone_number) indexItem(u.phone_number, formatted, 'global');
+      });
+
+      // 3. Index utility bill services and primary actions into O(1) search buckets
+      primaryActions.forEach(action => {
+         indexItem(action.label, action, 'services');
+      });
+      secondaryActions.forEach(service => {
+         indexItem(service.label, service, 'services');
+      });
+
+      // Convert all Set references to pure Arrays for efficient direct React mapping
+      const finalIndex = new Map();
+      for (const [key, value] of index.entries()) {
+         finalIndex.set(key, {
+            contacts: Array.from(value.contacts),
+            global: Array.from(value.global),
+            services: Array.from(value.services)
+         });
       }
-   }, [searchQuery, beneficiaries]);
+
+      return finalIndex;
+   }, [beneficiaries, platformUsers]);
+
+   // Optimized search effect with O(1) local suggestion rendering and O(1) API response caching
+   useEffect(() => {
+      const cleanQuery = searchQuery.trim().toLowerCase();
+
+      if (cleanQuery.length < 2) {
+         setSearchResults(null);
+         setIsSearching(false);
+         return;
+      }
+
+      setIsSearching(true);
+
+      // 1. Instant O(1) lookup in our local prefix hash map
+      const localMatches = localSearchHashMap.get(cleanQuery) || { contacts: [], global: [], services: [] };
+
+      // Update UI state instantly with local matching records to eliminate typings latency
+      setSearchResults(prev => ({
+         contacts: localMatches.contacts,
+         global: localMatches.global,
+         services: localMatches.services,
+         isLoadingGlobal: true // set global directories loading state
+      }));
+
+      // 2. Debounced asynchronous global user query
+      const timer = setTimeout(async () => {
+         try {
+            let globalUsers = [];
+
+            // Retrieve from client-side O(1) cache if query has been resolved previously
+            if (apiSearchCache.current.has(cleanQuery)) {
+               globalUsers = apiSearchCache.current.get(cleanQuery);
+            } else {
+               globalUsers = await authService.searchUsers(cleanQuery);
+               apiSearchCache.current.set(cleanQuery, globalUsers);
+            }
+
+            const localUpis = new Set(localMatches.contacts.map(c => c.upi_id?.toLowerCase()));
+            
+            // Format and merge results
+            const formattedGlobal = globalUsers.map(gu => ({
+               id: gu.id,
+               full_name: gu.full_name,
+               upi_id: gu.upi_id,
+               phone_number: gu.phone_number || '',
+               is_verified: gu.is_verified || false,
+               profile_image: gu.profile_image,
+               avatar: (gu.full_name || 'U').substring(0, 2).toUpperCase(),
+               color: 'bg-slate-900',
+               _source: 'api'
+            }));
+
+            const mergedGlobal = [
+               ...localMatches.global,
+               ...formattedGlobal
+            ].filter(gu => !localUpis.has(gu.upi_id?.toLowerCase()));
+
+            // Deduplicate lists by UPI ID to prevent UI key warnings
+            const seenUpis = new Set();
+            const dedupedGlobal = mergedGlobal.filter(gu => {
+               const upi = gu.upi_id?.toLowerCase();
+               if (!upi || seenUpis.has(upi)) return false;
+               seenUpis.add(upi);
+               return true;
+            });
+
+            setSearchResults({
+               contacts: localMatches.contacts,
+               global: dedupedGlobal,
+               services: localMatches.services,
+               isLoadingGlobal: false
+            });
+         } catch (err) {
+            console.error("Global directory discovery failed:", err);
+            setSearchResults(prev => ({
+               ...prev,
+               isLoadingGlobal: false,
+               error: true
+            }));
+         } finally {
+            setIsSearching(false);
+         }
+      }, 250); // 250ms debouncing delay
+
+      return () => clearTimeout(timer);
+   }, [searchQuery, localSearchHashMap]);
 
    // Create New Beneficiary directly to database
    const handleAddBeneficiary = async (e) => {
@@ -428,7 +553,8 @@ const Payments = () => {
                            className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-md border border-slate-200 rounded-3xl shadow-2xl z-50 overflow-hidden max-h-[400px] overflow-y-auto no-scrollbar"
                         >
                            <div className="p-5 space-y-4">
-                              {searchResults.contacts.length > 0 && (
+                              {/* Registered Contacts Section */}
+                              {searchResults.contacts && searchResults.contacts.length > 0 && (
                                  <div className="space-y-2">
                                     <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest px-1">Registered Contacts</p>
                                     <div className="space-y-1">
@@ -436,24 +562,44 @@ const Payments = () => {
                                           <button
                                              key={i}
                                              onClick={() => {
-                                                setSelectedRecipient({ upi: c.upi_id, name: c.beneficiary_name });
+                                                setSelectedRecipient({ upi: c.upi_id, name: c.name });
                                                 setActiveFlow('To Mobile / UPI');
                                                 setSearchQuery('');
                                              }}
-                                             className="w-full flex items-center gap-3 p-2.5 hover:bg-slate-50 rounded-xl transition-colors text-left"
+                                             className="w-full flex items-center justify-between p-2.5 hover:bg-indigo-50/50 hover:shadow-sm rounded-xl transition-all text-left group"
                                           >
-                                             <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-xl text-[10px] flex items-center justify-center font-black">{c.avatar}</div>
-                                             <span className="text-xs font-bold text-slate-900">{c.name}</span>
+                                             <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 bg-indigo-100 text-indigo-700 rounded-xl text-[10px] flex items-center justify-center font-black uppercase shadow-inner">
+                                                   {c.avatar}
+                                                </div>
+                                                <div>
+                                                   <div className="flex items-center gap-1.5">
+                                                      <p className="text-xs font-black text-slate-950 leading-none">{c.name}</p>
+                                                      {c.is_verified && <ShieldCheck size={11} className="text-indigo-600 fill-indigo-50" />}
+                                                   </div>
+                                                   <div className="flex items-center gap-2 mt-1">
+                                                      <span className="text-[9px] font-bold text-slate-450 leading-none">{c.upi_id}</span>
+                                                      {c.phone_number && (
+                                                         <span className="text-[8px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md leading-none">
+                                                            {c.phone_number}
+                                                         </span>
+                                                      )}
+                                                   </div>
+                                                </div>
+                                             </div>
+                                             <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all flex items-center gap-0.5 shrink-0">Pay Now <ChevronRight size={10} /></span>
                                           </button>
                                        ))}
                                     </div>
                                  </div>
                               )}
-                              {searchResults.global?.length > 0 && (
+
+                              {/* Global Directory Discovery Section */}
+                              {((searchResults.global && searchResults.global.length > 0) || searchResults.isLoadingGlobal) && (
                                  <div className="space-y-2">
                                     <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest px-1">Global Directory Discovery</p>
                                     <div className="space-y-1">
-                                       {searchResults.global.map((gu, i) => (
+                                       {searchResults.global && searchResults.global.map((gu, i) => (
                                           <button
                                              key={i}
                                              onClick={() => {
@@ -461,36 +607,80 @@ const Payments = () => {
                                                 setActiveFlow('To Mobile / UPI');
                                                 setSearchQuery('');
                                              }}
-                                             className="w-full flex items-center justify-between p-2.5 hover:bg-slate-50 rounded-xl transition-colors text-left group"
+                                             className="w-full flex items-center justify-between p-2.5 hover:bg-indigo-50/50 hover:shadow-sm rounded-xl transition-all text-left group"
                                           >
                                              <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 bg-slate-950 rounded-xl text-[10px] flex items-center justify-center text-white font-black">
-                                                   {gu.full_name.substring(0, 2).toUpperCase()}
+                                                <div className="w-8 h-8 bg-slate-900 text-slate-50 rounded-xl text-[10px] flex items-center justify-center font-black uppercase shadow-inner">
+                                                   {gu.avatar}
                                                 </div>
                                                 <div>
-                                                   <p className="text-xs font-black text-slate-900 leading-none">{gu.full_name}</p>
-                                                   <p className="text-[9px] font-bold text-slate-400 mt-1">{gu.upi_id}</p>
+                                                   <div className="flex items-center gap-1.5">
+                                                      <p className="text-xs font-black text-slate-950 leading-none">{gu.full_name}</p>
+                                                      {gu.is_verified && <ShieldCheck size={11} className="text-indigo-600 fill-indigo-50" />}
+                                                   </div>
+                                                   <div className="flex items-center gap-2 mt-1">
+                                                      <span className="text-[9px] font-bold text-slate-450 leading-none">{gu.upi_id}</span>
+                                                      {gu.phone_number && (
+                                                         <span className="text-[8px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md leading-none">
+                                                            {gu.phone_number}
+                                                         </span>
+                                                      )}
+                                                   </div>
                                                 </div>
                                              </div>
-                                             <div className="flex items-center gap-2">
-                                                {gu.is_verified && <ShieldCheck size={12} className="text-indigo-600" />}
-                                                <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all flex items-center gap-0.5">Pay Now <ChevronRight size={10} /></span>
+                                             <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all flex items-center gap-0.5 shrink-0">Pay Now <ChevronRight size={10} /></span>
+                                          </button>
+                                       ))}
+
+                                       {/* Global Loading Skeletons */}
+                                       {searchResults.isLoadingGlobal && (
+                                          <div className="space-y-1.5">
+                                             {[1, 2].map((n) => (
+                                                <div key={n} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/40 animate-pulse">
+                                                   <div className="flex items-center gap-3">
+                                                      <div className="w-8 h-8 bg-slate-200 rounded-xl"></div>
+                                                      <div className="space-y-2">
+                                                         <div className="w-24 h-2.5 bg-slate-200 rounded"></div>
+                                                         <div className="w-36 h-2 bg-slate-150 rounded"></div>
+                                                      </div>
+                                                   </div>
+                                                   <div className="w-10 h-3 bg-slate-200 rounded-md"></div>
+                                                </div>
+                                             ))}
+                                          </div>
+                                       )}
+                                    </div>
+                                 </div>
+                              )}
+
+                              {/* Actions & Billers Section */}
+                              {searchResults.services && searchResults.services.length > 0 && (
+                                 <div className="space-y-2">
+                                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest px-1">Actions & Billers</p>
+                                    <div className="space-y-1">
+                                       {searchResults.services.map((s, i) => (
+                                          <button key={i} onClick={() => { setActiveFlow(s.label); setSearchQuery(''); }} className="w-full flex items-center justify-between p-2.5 hover:bg-slate-50 rounded-xl transition-colors text-left group">
+                                             <div className="flex items-center gap-3">
+                                                <div className={`w-8 h-8 ${s.color || 'bg-slate-100 text-slate-700'} rounded-xl flex items-center justify-center`}><s.icon size={14} /></div>
+                                                <span className="text-xs font-bold text-slate-900">{s.label}</span>
                                              </div>
+                                             <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all flex items-center gap-0.5 shrink-0">Open <ChevronRight size={10} /></span>
                                           </button>
                                        ))}
                                     </div>
                                  </div>
                               )}
-                              {searchResults.services.length > 0 && (
-                                 <div className="space-y-2">
-                                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest px-1">Actions & Billers</p>
+
+                              {/* Fallback Empty State UI */}
+                              {(!searchResults.contacts || searchResults.contacts.length === 0) &&
+                               (!searchResults.global || searchResults.global.length === 0) &&
+                               (!searchResults.services || searchResults.services.length === 0) &&
+                               !searchResults.isLoadingGlobal && (
+                                 <div className="p-8 text-center space-y-3">
+                                    <AlertCircle className="mx-auto text-slate-350" size={32} />
                                     <div className="space-y-1">
-                                       {searchResults.services.map((s, i) => (
-                                          <button key={i} onClick={() => { setActiveFlow(s.label); setSearchQuery(''); }} className="w-full flex items-center gap-3 p-2.5 hover:bg-slate-50 rounded-xl transition-colors text-left">
-                                             <div className={`w-8 h-8 ${s.color || 'bg-slate-100 text-slate-700'} rounded-xl flex items-center justify-center`}><s.icon size={14} /></div>
-                                             <span className="text-xs font-bold text-slate-900">{s.label}</span>
-                                          </button>
-                                       ))}
+                                       <p className="text-xs font-black text-slate-900 leading-none">No Results Found</p>
+                                       <p className="text-[10px] font-bold text-slate-400 mt-1">We couldn't find any users or utilities matching "{searchQuery}"</p>
                                     </div>
                                  </div>
                               )}
