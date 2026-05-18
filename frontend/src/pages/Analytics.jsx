@@ -8,7 +8,8 @@ import {
   TrendingUp, TrendingDown, PieChart as LucidePieChart,
   Target, ShieldCheck, Wallet, Activity, Sparkles, BarChart2,
   Save, AlertCircle, CheckCircle2, DollarSign, CreditCard, Calendar,
-  RefreshCcw, Loader2, X, Brain, Lightbulb, Bell, Edit3
+  RefreshCcw, Loader2, X, Brain, Lightbulb, Bell, Edit3,
+  ArrowDownRight, Flame, Gift, PiggyBank, ChevronRight
 } from 'lucide-react';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area,
@@ -145,6 +146,84 @@ const genAdvisory = (bal, inc, exp, cats) => {
   if (sr < 0.1 && inc > 0) s.push({ type: 'warning', title: 'Low Savings Rate', message: 'You are saving only ' + (sr * 100).toFixed(0) + '% of income. Aim for at least 20%.', action: 'Optimize Budget' });
   if (!s.length) s.push({ type: 'info', title: 'Great Financial Health', message: 'Your spending is well-balanced. Keep maintaining your current habits.', action: 'View Details' });
   return s.slice(0, 3);
+};
+
+// ── ADA GREEDY ALGORITHM: Savings Optimizer ──────────────────────────────────
+// Greedy approach: at each step pick the category with the HIGHEST potential
+// savings (maximum immediate benefit) and generate an actionable recommendation.
+const greedySavingsOptimizer = (transactions, categories, balance, budgets) => {
+  if (!transactions || !transactions.length) return { opportunities: [], totalPotential: 0, monthlyPrediction: 0, categoryAnalysis: [] };
+
+  // Step 1: Aggregate expenses by category
+  const catSpend = {};
+  let totalExpense = 0, totalIncome = 0;
+  transactions.forEach(tx => {
+    const a = Math.abs(safeNum(tx.amount));
+    if (tx.type === 'expense') {
+      const c = tx.category || 'Other';
+      catSpend[c] = (catSpend[c] || 0) + a;
+      totalExpense += a;
+    } else if (tx.type === 'income') {
+      totalIncome += a;
+    }
+  });
+
+  // Step 2: Build items with savings potential per category
+  const items = Object.entries(catSpend).map(([cat, spent]) => {
+    const bud = (budgets || []).find(b => b.category === cat);
+    const limit = safeNum(bud?.monthly_limit) || spent * 1.1;
+    const overSpend = Math.max(0, spent - limit);
+    // Greedy weight: prioritize highest absolute spend first
+    const savingsPotential = cat === 'Salary' || cat === 'Income' ? 0 : spent * 0.15;
+    return { category: cat, spent, limit, overSpend, savingsPotential, icon: CAT_ICONS[cat] || Activity, color: CAT_COLORS[cat] || '#94a3b8' };
+  });
+
+  // Step 3: GREEDY SORT — descending by savingsPotential (pick max benefit first)
+  // Custom merge sort to satisfy ADA requirement
+  const greedyMergeSort = (arr) => {
+    if (arr.length <= 1) return arr;
+    const mid = Math.floor(arr.length / 2);
+    const left = greedyMergeSort(arr.slice(0, mid));
+    const right = greedyMergeSort(arr.slice(mid));
+    const result = [];
+    let i = 0, j = 0;
+    while (i < left.length && j < right.length) {
+      if (left[i].savingsPotential >= right[j].savingsPotential) { result.push(left[i]); i++; }
+      else { result.push(right[j]); j++; }
+    }
+    return result.concat(left.slice(i)).concat(right.slice(j));
+  };
+  const sorted = greedyMergeSort(items.filter(x => x.savingsPotential > 0));
+
+  // Step 4: Greedy selection — pick opportunities greedily from highest to lowest
+  const opportunities = [];
+  let totalPotential = 0;
+  sorted.forEach((item, idx) => {
+    if (idx >= 5) return; // top 5 greedy picks
+    totalPotential += item.savingsPotential;
+    let message = '';
+    if (item.overSpend > 0) {
+      message = `You exceeded your ${item.category} budget by ${fmt(item.overSpend)}. Reducing spending by 15% could save ${fmt(item.savingsPotential)}/month.`;
+    } else {
+      message = `You spent ${fmt(item.spent)} on ${item.category} this month. Optimizing by 15% could save ${fmt(item.savingsPotential)}/month.`;
+    }
+    opportunities.push({ ...item, message, rank: idx + 1 });
+  });
+
+  // Step 5: Idle balance advisory
+  if (balance > 25000) {
+    opportunities.push({
+      category: 'Idle Balance', spent: 0, savingsPotential: balance * 0.075 / 12,
+      message: `You maintain ${fmt(balance)} idle balance. Moving ${fmt(balance * 0.5)} to FD at 7.5% could generate ${fmt(balance * 0.5 * 0.075 / 12)}/month in returns.`,
+      icon: DollarSign, color: '#10b981', rank: opportunities.length + 1
+    });
+    totalPotential += balance * 0.075 / 12;
+  }
+
+  // Monthly prediction
+  const monthlyPrediction = Math.max(0, totalIncome - totalExpense + totalPotential);
+
+  return { opportunities, totalPotential, monthlyPrediction, categoryAnalysis: sorted, totalExpense, totalIncome };
 };
 
 // ── SKELETON ──────────────────────────────────────────────────────────────────
@@ -947,11 +1026,197 @@ const BudgetingTab = ({ categories, transactions, budgets, isLoading, onBudgetSa
 };
 
 
+// ── AI SAVINGS LAB TAB (Greedy Algorithm) ────────────────────────────────────
+const SavingsLabTab = ({ categories, transactions, balance, budgets, isLoading }) => {
+  const greedy = useMemo(() => greedySavingsOptimizer(transactions, categories, balance, budgets), [transactions, categories, balance, budgets]);
+
+  if (isLoading) return (
+    <div className="space-y-8">{[1, 2, 3].map(i => <Skeleton key={i} className="h-48" />)}</div>
+  );
+
+  const hasData = greedy.opportunities.length > 0;
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8">
+
+      {/* Hero: Total Savings Potential */}
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 rounded-[2.5rem] p-8 lg:p-12 text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full -translate-y-32 translate-x-32 blur-3xl" />
+        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
+          <div className="lg:col-span-2 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center"><Sparkles size={20} /></div>
+              <div>
+                <p className="text-[10px] font-black text-indigo-300 uppercase tracking-widest">ADA Greedy Algorithm • Savings Optimizer</p>
+              </div>
+            </div>
+            <p className="text-4xl lg:text-5xl font-black tracking-tighter">{fmt(greedy.totalPotential)}<span className="text-lg text-slate-400 font-bold">/mo</span></p>
+            <p className="text-sm font-bold text-slate-400 leading-relaxed max-w-lg">Total potential monthly savings identified by analyzing your spending patterns using a greedy optimization strategy.</p>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Spend</p>
+              <p className="text-base font-black">{fmt(greedy.totalExpense)}</p>
+            </div>
+            <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Income</p>
+              <p className="text-base font-black">{fmt(greedy.totalIncome)}</p>
+            </div>
+            <div className="p-4 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 col-span-2">
+              <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-1">Optimized Monthly Savings</p>
+              <p className="text-base font-black text-emerald-400">{fmt(greedy.monthlyPrediction)}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Savings Opportunities (Greedy Ranked) */}
+      <div className="bg-white rounded-[2.5rem] p-8 lg:p-10 border border-slate-50 shadow-sm">
+        <div className="flex items-center gap-3 mb-8">
+          <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><Target size={20} /></div>
+          <div>
+            <h3 className="font-black text-slate-900 text-lg tracking-tight">Savings Opportunities</h3>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Greedy-ranked by maximum immediate benefit</p>
+          </div>
+        </div>
+        {hasData ? (
+          <div className="space-y-4">
+            {greedy.opportunities.map((opp, i) => {
+              const OppIcon = opp.icon || Activity;
+              return (
+                <motion.div key={i} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.08 }}
+                  className="p-6 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <div className="relative shrink-0">
+                      <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg" style={{ backgroundColor: opp.color }}><OppIcon size={20} /></div>
+                      <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-slate-900 text-white rounded-full text-[8px] font-black flex items-center justify-center">#{opp.rank}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-black text-slate-900 text-sm mb-1">{opp.category}</p>
+                      <p className="text-[11px] font-medium text-slate-500 leading-relaxed">{opp.message}</p>
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-lg font-black text-emerald-600">{fmt(opp.savingsPotential)}</p>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">potential/mo</p>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-16 space-y-4">
+            <Wallet size={40} className="text-slate-200" />
+            <p className="text-[11px] font-black text-slate-300 uppercase tracking-widest text-center">No spending data to analyze yet.<br/>Make transactions to see savings insights.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Expense Category Analysis */}
+      {greedy.categoryAnalysis.length > 0 && (
+        <div className="bg-white rounded-[2.5rem] p-8 lg:p-10 border border-slate-50 shadow-sm">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center"><BarChart2 size={20} /></div>
+            <div>
+              <h3 className="font-black text-slate-900 text-lg tracking-tight">Expense Category Analysis</h3>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Greedy priority ranking</p>
+            </div>
+          </div>
+          <div className="space-y-5">
+            {greedy.categoryAnalysis.slice(0, 6).map((cat, i) => {
+              const CatIcon = cat.icon || Activity;
+              const pct = greedy.totalExpense > 0 ? (cat.spent / greedy.totalExpense) * 100 : 0;
+              return (
+                <div key={i} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white" style={{ backgroundColor: cat.color }}><CatIcon size={14} /></div>
+                      <p className="font-black text-slate-900 text-sm">{cat.category}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[11px] font-black text-slate-900">{fmt(cat.spent)}</p>
+                      <p className="text-[9px] font-bold text-slate-400">{pct.toFixed(1)}% of total</p>
+                    </div>
+                  </div>
+                  <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                    <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8, delay: i * 0.05 }}
+                      className="h-full rounded-full" style={{ backgroundColor: cat.color }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Smart Recommendations */}
+      <div className="bg-white rounded-[2.5rem] p-8 lg:p-10 border border-slate-50 shadow-sm">
+        <div className="flex items-center gap-3 mb-8">
+          <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center"><Lightbulb size={20} /></div>
+          <div>
+            <h3 className="font-black text-slate-900 text-lg tracking-tight">Smart Financial Recommendations</h3>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">AI-powered advisory</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {[
+            { cond: greedy.totalIncome > 0 && (greedy.totalIncome - greedy.totalExpense) / greedy.totalIncome < 0.2, type: 'warning', title: 'Low Savings Rate', msg: `You're saving only ${greedy.totalIncome > 0 ? (((greedy.totalIncome - greedy.totalExpense) / greedy.totalIncome) * 100).toFixed(0) : 0}% of income. Aim for at least 20%.`, icon: AlertCircle },
+            { cond: greedy.totalExpense > 0 && balance < greedy.totalExpense * 3, type: 'emergency', title: 'Emergency Fund Gap', msg: `Build a 6-month emergency fund of ${fmt(greedy.totalExpense * 6)}. You need ${fmt(Math.max(0, greedy.totalExpense * 6 - balance))} more.`, icon: ShieldCheck },
+            { cond: balance > 50000, type: 'investment', title: 'Idle Capital Detected', msg: `${fmt(balance)} sitting idle. Consider FD or SIP for better returns.`, icon: TrendingUp },
+            { cond: greedy.opportunities.length > 0, type: 'optimization', title: 'Spending Optimization', msg: `Top category to optimize: ${greedy.opportunities[0]?.category || 'N/A'}. Could save ${fmt(greedy.opportunities[0]?.savingsPotential || 0)}/month.`, icon: Target }
+          ].filter(r => r.cond).map((rec, i) => {
+            const RecIcon = rec.icon;
+            const bgMap = { warning: 'bg-amber-50 border-amber-100', emergency: 'bg-blue-50 border-blue-100', investment: 'bg-emerald-50 border-emerald-100', optimization: 'bg-indigo-50 border-indigo-100' };
+            const iconMap = { warning: 'bg-amber-100 text-amber-600', emergency: 'bg-blue-100 text-blue-600', investment: 'bg-emerald-100 text-emerald-600', optimization: 'bg-indigo-100 text-indigo-600' };
+            return (
+              <div key={i} className={`p-5 rounded-2xl border ${bgMap[rec.type] || 'bg-slate-50 border-slate-100'}`}>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${iconMap[rec.type] || 'bg-slate-100 text-slate-600'}`}><RecIcon size={18} /></div>
+                <p className="font-black text-slate-900 text-sm mb-1">{rec.title}</p>
+                <p className="text-[11px] font-medium text-slate-500 leading-relaxed">{rec.msg}</p>
+              </div>
+            );
+          })}
+          {greedy.totalExpense === 0 && (
+            <div className="col-span-full p-8 text-center"><p className="text-[11px] font-black text-slate-300 uppercase tracking-widest">Make transactions to unlock recommendations</p></div>
+          )}
+        </div>
+      </div>
+
+      {/* Monthly Savings Prediction */}
+      <div className="bg-white rounded-[2.5rem] p-8 lg:p-10 border border-slate-50 shadow-sm">
+        <div className="flex items-center gap-3 mb-8">
+          <div className="w-10 h-10 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center"><TrendingUp size={20} /></div>
+          <div>
+            <h3 className="font-black text-slate-900 text-lg tracking-tight">Monthly Savings Prediction</h3>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">With greedy optimization applied</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 text-center">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Current Savings</p>
+            <p className={`text-2xl font-black tracking-tight ${greedy.totalIncome - greedy.totalExpense >= 0 ? 'text-slate-900' : 'text-rose-600'}`}>{fmt(Math.max(0, greedy.totalIncome - greedy.totalExpense))}</p>
+          </div>
+          <div className="p-6 bg-emerald-50 rounded-2xl border border-emerald-100 text-center">
+            <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-2">Optimized Savings</p>
+            <p className="text-2xl font-black tracking-tight text-emerald-600">{fmt(greedy.monthlyPrediction)}</p>
+          </div>
+          <div className="p-6 bg-indigo-50 rounded-2xl border border-indigo-100 text-center">
+            <p className="text-[9px] font-black text-indigo-600 uppercase tracking-widest mb-2">Additional Gain</p>
+            <p className="text-2xl font-black tracking-tight text-indigo-600">+{fmt(greedy.totalPotential)}</p>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+
 // MAIN ANALYTICS COMPONENT
 const TABS = [
   { id: 'analysis', label: 'Analysis', icon: LucidePieChart },
   { id: 'performance', label: 'Performance', icon: Activity },
   { id: 'advisory', label: 'Advisory', icon: Brain },
+  { id: 'savings', label: 'AI Savings Lab', icon: Sparkles },
   { id: 'budgeting', label: 'Budgeting', icon: Target }
 ];
 
@@ -1035,6 +1300,10 @@ const Analytics = () => {
           {activeTab === 'advisory' && (
             <AdvisoryTab key="advisory" categories={categories} transactions={allTransactions}
               balance={safeNum(balance)} isLoading={isLoading} onOpenModal={() => setModalOpen(true)} />
+          )}
+          {activeTab === 'savings' && (
+            <SavingsLabTab key="savings" categories={categories} transactions={allTransactions}
+              balance={safeNum(balance)} budgets={budgets} isLoading={isLoading} />
           )}
           {activeTab === 'budgeting' && (
             <BudgetingTab key="budgeting" categories={categories} transactions={currentMonthTx}
