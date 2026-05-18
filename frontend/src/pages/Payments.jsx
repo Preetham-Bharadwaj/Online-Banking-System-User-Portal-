@@ -46,6 +46,24 @@ import { bankingService } from '../services/bankingService';
 import authService from '../services/authService';
 import { supabase } from '../utils/supabaseClient';
 
+const primaryActions = [
+   { icon: Send, label: 'To Bank Account', color: 'bg-indigo-600 shadow-indigo-100', desc: 'Secure IMPS/NEFT transfers' },
+   { icon: Zap, label: 'To Mobile / UPI', color: 'bg-violet-600 shadow-violet-100', desc: 'Instant VPA transfer' },
+   { icon: ArrowLeftRight, label: 'To Self Account', color: 'bg-emerald-600 shadow-emerald-100', desc: 'Sweep connected funds' },
+   { icon: Users, label: 'Split Expense', color: 'bg-rose-500 shadow-rose-100', desc: 'Settle shared groups' },
+];
+
+const secondaryActions = [
+   { icon: Smartphone, label: 'Mobile Recharge', color: 'bg-rose-50' },
+   { icon: Tv, label: 'DTH Recharge', color: 'bg-slate-50' },
+   { icon: Zap, label: 'Electricity', color: 'bg-amber-50' },
+   { icon: Droplet, label: 'Water', color: 'bg-sky-50' },
+   { icon: Flame, label: 'Gas', color: 'bg-orange-50' },
+   { icon: Wifi, label: 'Broadband', color: 'bg-indigo-50' },
+   { icon: Car, label: 'FASTag', color: 'bg-blue-50' },
+   { icon: Plus, label: 'Utilities', color: 'bg-purple-50' }
+];
+
 const Payments = () => {
    const { openScanner } = useQR();
    const location = useLocation();
@@ -474,24 +492,6 @@ const Payments = () => {
       status: bill.status || 'pending',
       icon: Receipt
    }));
-
-   const primaryActions = [
-      { icon: Send, label: 'To Bank Account', color: 'bg-indigo-600 shadow-indigo-100', desc: 'Secure IMPS/NEFT transfers' },
-      { icon: Zap, label: 'To Mobile / UPI', color: 'bg-violet-600 shadow-violet-100', desc: 'Instant VPA transfer' },
-      { icon: ArrowLeftRight, label: 'To Self Account', color: 'bg-emerald-600 shadow-emerald-100', desc: 'Sweep connected funds' },
-      { icon: Users, label: 'Split Expense', color: 'bg-rose-500 shadow-rose-100', desc: 'Settle shared groups' },
-   ];
-
-   const secondaryActions = [
-      { icon: Smartphone, label: 'Mobile Recharge', color: 'bg-rose-50' },
-      { icon: Tv, label: 'DTH Recharge', color: 'bg-slate-50' },
-      { icon: Zap, label: 'Electricity', color: 'bg-amber-50' },
-      { icon: Droplet, label: 'Water', color: 'bg-sky-50' },
-      { icon: Flame, label: 'Gas', color: 'bg-orange-50' },
-      { icon: Wifi, label: 'Broadband', color: 'bg-indigo-50' },
-      { icon: Car, label: 'FASTag', color: 'bg-blue-50' },
-      { icon: Plus, label: 'Utilities', color: 'bg-purple-50' }
-   ];
 
    const getStatusChip = (status) => {
       switch (status) {
