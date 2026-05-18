@@ -9,7 +9,7 @@ import {
   Target, ShieldCheck, Wallet, Activity, Sparkles, BarChart2,
   Save, AlertCircle, CheckCircle2, DollarSign, CreditCard, Calendar,
   RefreshCcw, Loader2, X, Brain, Lightbulb, Bell, Edit3,
-  ArrowDownRight, Flame, Gift, PiggyBank, ChevronRight
+  ArrowDownRight, Flame, Gift, PiggyBank, ChevronRight, Clock, Gauge
 } from 'lucide-react';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area,
@@ -52,15 +52,21 @@ const calcSnapshot = (txs) => {
   return { totalIncome: inc, totalExpense: exp, netSavings: inc - exp, emiPaid: emi, billsPaid: bills };
 };
 
+// Categories that should NEVER appear in user-facing analytics
+const HIDDEN_CATS = ['fraud test', 'fraud', 'test', 'debug', 'admin', 'internal'];
+const isHiddenCat = (c) => HIDDEN_CATS.includes((c || '').toLowerCase().trim());
+
 const buildCats = (txs, budgets) => {
   const g = {};
   (txs || []).forEach(tx => {
     if (tx.type !== 'expense') return;
     const c = tx.category || 'Other';
+    if (isHiddenCat(c)) return;
     if (!g[c]) { const b = (budgets || []).find(b => b.category === c); g[c] = { name: c, spent: 0, limit: safeNum(b?.monthly_limit) || 10000, icon: CAT_ICONS[c] || Activity, color: CAT_COLORS[c] || '#94a3b8' }; }
     g[c].spent += Math.abs(safeNum(tx.amount));
   });
   (budgets || []).forEach(b => {
+    if (isHiddenCat(b.category)) return;
     if (!g[b.category]) g[b.category] = { name: b.category, spent: 0, limit: safeNum(b.monthly_limit) || 10000, icon: CAT_ICONS[b.category] || Activity, color: CAT_COLORS[b.category] || '#94a3b8' };
     else g[b.category].limit = safeNum(b.monthly_limit) || g[b.category].limit;
   });
@@ -161,6 +167,7 @@ const greedySavingsOptimizer = (transactions, categories, balance, budgets) => {
     const a = Math.abs(safeNum(tx.amount));
     if (tx.type === 'expense') {
       const c = tx.category || 'Other';
+      if (isHiddenCat(c)) return;
       catSpend[c] = (catSpend[c] || 0) + a;
       totalExpense += a;
     } else if (tx.type === 'income') {
@@ -224,6 +231,96 @@ const greedySavingsOptimizer = (transactions, categories, balance, budgets) => {
   const monthlyPrediction = Math.max(0, totalIncome - totalExpense + totalPotential);
 
   return { opportunities, totalPotential, monthlyPrediction, categoryAnalysis: sorted, totalExpense, totalIncome };
+};
+
+// ── ADA DYNAMIC PROGRAMMING: Financial Forecaster ────────────────────────────
+// Uses bottom-up tabulation DP to compute monthly aggregates once, then
+// applies weighted moving average with memoized sub-results for O(n) prediction.
+const dpFinancialForecaster = (transactions, balance, budgets) => {
+  if (!transactions || !transactions.length) return { monthlyTable: [], predictedExpense: 0, predictedIncome: 0, predictedSavings: 0, confidence: 0, categoryForecasts: [], chartData: [] };
+
+  // ── Step 1: DP Tabulation — build monthly aggregates in a single pass ──
+  const monthMap = {};  // memoization table: key → {income, expense, catSpend}
+  transactions.forEach(tx => {
+    const d = new Date(tx.created_at);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    if (!monthMap[key]) monthMap[key] = { key, income: 0, expense: 0, catSpend: {}, year: d.getFullYear(), month: d.getMonth() };
+    const a = Math.abs(safeNum(tx.amount));
+    if (tx.type === 'income') monthMap[key].income += a;
+    else if (tx.type === 'expense') {
+      monthMap[key].expense += a;
+      const c = tx.category || 'Other';
+      if (!isHiddenCat(c)) monthMap[key].catSpend[c] = (monthMap[key].catSpend[c] || 0) + a;
+    }
+  });
+
+  // Sort chronologically (DP table order)
+  const table = Object.values(monthMap).sort((a, b) => a.key.localeCompare(b.key));
+  const n = table.length;
+
+  // ── Step 2: DP recurrence — weighted moving average with memoized prefix sums ──
+  // dp[i] stores cumulative weighted expense/income up to month i
+  // Recurrence: dp[i] = dp[i-1] + weight_i * value_i
+  // Prediction = dp[n-1] / totalWeight
+  const dpExpense = new Array(n).fill(0);
+  const dpIncome = new Array(n).fill(0);
+  let totalWeight = 0;
+
+  for (let i = 0; i < n; i++) {
+    // Recent months get higher weight (recency bias)
+    const weight = i + 1;
+    totalWeight += weight;
+    dpExpense[i] = (i > 0 ? dpExpense[i - 1] : 0) + weight * table[i].expense;
+    dpIncome[i] = (i > 0 ? dpIncome[i - 1] : 0) + weight * table[i].income;
+  }
+
+  const predictedExpense = totalWeight > 0 ? dpExpense[n - 1] / totalWeight : 0;
+  const predictedIncome = totalWeight > 0 ? dpIncome[n - 1] / totalWeight : 0;
+  const predictedSavings = Math.max(0, predictedIncome - predictedExpense);
+
+  // ── Step 3: Confidence score based on data sufficiency ──
+  const confidence = Math.min(100, Math.round((n / 6) * 100));
+
+  // ── Step 4: Per-category DP forecast (memoized sub-problems) ──
+  const allCats = new Set();
+  table.forEach(m => Object.keys(m.catSpend).forEach(c => allCats.add(c)));
+  const catMemo = {};  // memoization cache
+  allCats.forEach(cat => {
+    if (cat === 'Salary' || cat === 'Income') return;
+    let wSum = 0, wTotal = 0;
+    for (let i = 0; i < n; i++) {
+      const w = i + 1;
+      wSum += w * (table[i].catSpend[cat] || 0);
+      wTotal += w;
+    }
+    catMemo[cat] = wTotal > 0 ? wSum / wTotal : 0;
+  });
+  const categoryForecasts = Object.entries(catMemo)
+    .filter(([, v]) => v > 0)
+    .map(([cat, predicted]) => ({ category: cat, predicted, icon: CAT_ICONS[cat] || Activity, color: CAT_COLORS[cat] || '#94a3b8' }))
+    .sort((a, b) => b.predicted - a.predicted)
+    .slice(0, 6);
+
+  // ── Step 5: Build chart data (historical + predicted) ──
+  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const chartData = table.slice(-6).map(m => ({
+    name: monthNames[m.month],
+    expense: Math.round(m.expense),
+    income: Math.round(m.income),
+    savings: Math.round(m.income - m.expense)
+  }));
+  // Add predicted month
+  const lastMonth = table[n - 1]?.month ?? new Date().getMonth();
+  const nextMonthIdx = (lastMonth + 1) % 12;
+  chartData.push({
+    name: monthNames[nextMonthIdx] + ' (P)',
+    expense: Math.round(predictedExpense),
+    income: Math.round(predictedIncome),
+    savings: Math.round(predictedSavings),
+    isPredicted: true
+  });
+
+  return { monthlyTable: table, predictedExpense, predictedIncome, predictedSavings, confidence, categoryForecasts, chartData };
 };
 
 // ── SKELETON ──────────────────────────────────────────────────────────────────
@@ -644,7 +741,7 @@ const AdvisoryTab = ({ categories, transactions, balance, isLoading, onOpenModal
         </div>
       </div>
 
-      {/* DSA Engine Insights — DP Forecast + Greedy Optimization */}
+      {/* Advanced Financial Insights */}
       {dsaAnalytics && (
         <div className="bg-white rounded-[2.5rem] p-8 lg:p-10 border border-slate-50 shadow-sm">
           <div className="flex items-center gap-3 mb-8">
@@ -652,8 +749,8 @@ const AdvisoryTab = ({ categories, transactions, balance, isLoading, onOpenModal
               <Sparkles size={20} />
             </div>
             <div>
-              <h3 className="font-black text-slate-900 text-lg tracking-tight">DSA Engine Insights</h3>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Greedy optimization + DP forecast</p>
+              <h3 className="font-black text-slate-900 text-lg tracking-tight">Advanced Financial Insights</h3>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Intelligent spending analysis</p>
             </div>
           </div>
           <div className="space-y-6">
@@ -662,19 +759,19 @@ const AdvisoryTab = ({ categories, transactions, balance, isLoading, onOpenModal
               <div className="p-6 bg-indigo-50 border border-indigo-100 rounded-2xl">
                 <div className="flex items-center gap-3 mb-3">
                   <TrendingUp size={18} className="text-indigo-600" />
-                  <p className="text-[10px] font-black text-indigo-900 uppercase tracking-widest">DP Spending Forecast</p>
+                  <p className="text-[10px] font-black text-indigo-900 uppercase tracking-widest">Projected Monthly Spending</p>
                 </div>
                 <p className="text-3xl font-black text-indigo-700 tracking-tight">
                   {fmt(dsaAnalytics.spending_forecast[0])}
                 </p>
-                <p className="text-[11px] font-bold text-indigo-400 mt-1">Predicted next month spending (moving average)</p>
+                <p className="text-[11px] font-bold text-indigo-400 mt-1">Estimated spending for next month based on your activity</p>
               </div>
             )}
 
-            {/* Greedy Budget Optimization */}
+            {/* Budget Optimization */}
             {dsaAnalytics.budget_optimization && dsaAnalytics.budget_optimization.length > 0 && (
               <div className="space-y-3">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Budget Optimization (Greedy)</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Budget Optimization Tips</p>
                 {dsaAnalytics.budget_optimization.filter(o => o.recommendation !== 'On track').slice(0, 4).map((opt, i) => (
                   <div key={i} className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex items-center gap-4">
                     <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
@@ -1047,11 +1144,11 @@ const SavingsLabTab = ({ categories, transactions, balance, budgets, isLoading }
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center"><Sparkles size={20} /></div>
               <div>
-                <p className="text-[10px] font-black text-indigo-300 uppercase tracking-widest">ADA Greedy Algorithm • Savings Optimizer</p>
+                <p className="text-[10px] font-black text-indigo-300 uppercase tracking-widest">Intelligent Savings Advisor</p>
               </div>
             </div>
             <p className="text-4xl lg:text-5xl font-black tracking-tighter">{fmt(greedy.totalPotential)}<span className="text-lg text-slate-400 font-bold">/mo</span></p>
-            <p className="text-sm font-bold text-slate-400 leading-relaxed max-w-lg">Total potential monthly savings identified by analyzing your spending patterns using a greedy optimization strategy.</p>
+            <p className="text-sm font-bold text-slate-400 leading-relaxed max-w-lg">Total potential monthly savings identified by analyzing your spending patterns and optimizing across categories.</p>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
@@ -1070,13 +1167,13 @@ const SavingsLabTab = ({ categories, transactions, balance, budgets, isLoading }
         </div>
       </div>
 
-      {/* Savings Opportunities (Greedy Ranked) */}
+      {/* Savings Opportunities */}
       <div className="bg-white rounded-[2.5rem] p-8 lg:p-10 border border-slate-50 shadow-sm">
         <div className="flex items-center gap-3 mb-8">
           <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><Target size={20} /></div>
           <div>
             <h3 className="font-black text-slate-900 text-lg tracking-tight">Savings Opportunities</h3>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Greedy-ranked by maximum immediate benefit</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ranked by highest impact potential</p>
           </div>
         </div>
         {hasData ? (
@@ -1119,7 +1216,7 @@ const SavingsLabTab = ({ categories, transactions, balance, budgets, isLoading }
             <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center"><BarChart2 size={20} /></div>
             <div>
               <h3 className="font-black text-slate-900 text-lg tracking-tight">Expense Category Analysis</h3>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Greedy priority ranking</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Spending breakdown by category</p>
             </div>
           </div>
           <div className="space-y-5">
@@ -1188,7 +1285,7 @@ const SavingsLabTab = ({ categories, transactions, balance, budgets, isLoading }
           <div className="w-10 h-10 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center"><TrendingUp size={20} /></div>
           <div>
             <h3 className="font-black text-slate-900 text-lg tracking-tight">Monthly Savings Prediction</h3>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">With greedy optimization applied</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">With smart optimization applied</p>
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
@@ -1211,12 +1308,158 @@ const SavingsLabTab = ({ categories, transactions, balance, budgets, isLoading }
 };
 
 
+// ── DP FORECAST TAB ──────────────────────────────────────────────────────────
+const ForecastTab = ({ transactions, balance, budgets, isLoading }) => {
+  const dp = useMemo(() => dpFinancialForecaster(transactions, balance, budgets), [transactions, balance, budgets]);
+
+  if (isLoading) return <div className="space-y-8">{[1,2,3].map(i => <Skeleton key={i} className="h-48" />)}</div>;
+
+  const hasData = dp.monthlyTable.length > 0;
+  const confColor = dp.confidence >= 70 ? 'emerald' : dp.confidence >= 40 ? 'amber' : 'rose';
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8">
+
+      {/* Hero: Prediction Summary */}
+      <div className="bg-gradient-to-br from-indigo-900 via-slate-900 to-violet-900 rounded-[2.5rem] p-8 lg:p-12 text-white relative overflow-hidden">
+        <div className="absolute bottom-0 left-0 w-72 h-72 bg-violet-500/10 rounded-full translate-y-36 -translate-x-36 blur-3xl" />
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-2xl bg-violet-500/20 text-violet-400 flex items-center justify-center"><Brain size={20} /></div>
+            <p className="text-[10px] font-black text-violet-300 uppercase tracking-widest">Financial Forecast • Powered by Finova Intelligence</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div>
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Predicted Expense</p>
+              <p className="text-3xl font-black tracking-tighter">{fmt(dp.predictedExpense)}</p>
+            </div>
+            <div>
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Predicted Income</p>
+              <p className="text-3xl font-black tracking-tighter text-emerald-400">{fmt(dp.predictedIncome)}</p>
+            </div>
+            <div>
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Expected Savings</p>
+              <p className="text-3xl font-black tracking-tighter text-violet-300">{fmt(dp.predictedSavings)}</p>
+            </div>
+            <div>
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Confidence</p>
+              <p className={`text-3xl font-black tracking-tighter text-${confColor}-400`}>{dp.confidence}%</p>
+              <p className="text-[9px] font-bold text-slate-500 mt-1">Based on {dp.monthlyTable.length} month(s) of activity</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Forecast Chart */}
+      <div className="bg-white rounded-[2.5rem] p-8 lg:p-10 border border-slate-50 shadow-sm">
+        <h3 className="font-black text-slate-900 text-lg tracking-tight mb-8">Spending & Income Forecast</h3>
+        {hasData ? (
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={dp.chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barGap={4}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="name" tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={v => fmt(v)} width={60} />
+              <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0/0.1)' }} formatter={v => [fmt(v)]} />
+              <Bar dataKey="income" fill="#10b981" radius={[6,6,0,0]} name="Income" />
+              <Bar dataKey="expense" fill="#6366f1" radius={[6,6,0,0]} name="Expense" />
+              <Bar dataKey="savings" fill="#8b5cf6" radius={[6,6,0,0]} name="Savings" />
+              <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '10px', fontWeight: 700 }} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-12 space-y-3"><BarChart2 size={32} className="text-slate-200" /><p className="text-[11px] font-black text-slate-300 uppercase tracking-widest">Insufficient data for forecast</p></div>
+        )}
+      </div>
+
+      {/* Future Budget Health */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        {[
+          { label: 'Budget Health', value: dp.predictedIncome > 0 ? (dp.predictedSavings / dp.predictedIncome * 100).toFixed(0) + '%' : 'N/A', sub: 'Expected savings rate next month', good: dp.predictedSavings / (dp.predictedIncome || 1) >= 0.2, icon: ShieldCheck },
+          { label: 'Expense Trend', value: dp.monthlyTable.length >= 2 ? (dp.predictedExpense > dp.monthlyTable[dp.monthlyTable.length-1].expense ? 'Rising' : 'Falling') : 'Stable', sub: 'Compared to last month', good: dp.predictedExpense <= (dp.monthlyTable[dp.monthlyTable.length-1]?.expense || Infinity), icon: TrendingUp },
+          { label: 'Data Coverage', value: dp.monthlyTable.length + ' months', sub: 'Based on recent activity', good: dp.monthlyTable.length >= 3, icon: Calendar }
+        ].map((card, i) => (
+          <div key={i} className={`p-6 rounded-[2rem] border ${card.good ? 'bg-emerald-50 border-emerald-100' : 'bg-amber-50 border-amber-100'}`}>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${card.good ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}><card.icon size={18} /></div>
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+            <p className="text-xl font-black text-slate-900 tracking-tight">{card.value}</p>
+            <p className="text-[10px] font-bold text-slate-400 mt-1">{card.sub}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Category Forecasts */}
+      {dp.categoryForecasts.length > 0 && (
+        <div className="bg-white rounded-[2.5rem] p-8 lg:p-10 border border-slate-50 shadow-sm">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center"><BarChart2 size={20} /></div>
+            <div>
+              <h3 className="font-black text-slate-900 text-lg tracking-tight">Projected Category Spending</h3>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Expected spending by category next month</p>
+            </div>
+          </div>
+          <div className="space-y-5">
+            {dp.categoryForecasts.map((cf, i) => {
+              const CIcon = cf.icon || Activity;
+              const pct = dp.predictedExpense > 0 ? (cf.predicted / dp.predictedExpense) * 100 : 0;
+              return (
+                <div key={i} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white" style={{ backgroundColor: cf.color }}><CIcon size={14} /></div>
+                      <p className="font-black text-slate-900 text-sm">{cf.category}</p>
+                    </div>
+                    <p className="text-[11px] font-black text-slate-900">{fmt(cf.predicted)} <span className="text-slate-400 font-bold">({pct.toFixed(0)}%)</span></p>
+                  </div>
+                  <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                    <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8, delay: i * 0.05 }} className="h-full rounded-full" style={{ backgroundColor: cf.color }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Smart Budget Recommendation */}
+      <div className="bg-white rounded-[2.5rem] p-8 lg:p-10 border border-slate-50 shadow-sm">
+        <div className="flex items-center gap-3 mb-8">
+          <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center"><Lightbulb size={20} /></div>
+          <div>
+            <h3 className="font-black text-slate-900 text-lg tracking-tight">Smart Budget Recommendations</h3>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Based on your financial activity</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {[
+            { cond: dp.predictedExpense > dp.predictedIncome, type: 'danger', title: 'Deficit Alert', msg: `Predicted expenses (${fmt(dp.predictedExpense)}) exceed income (${fmt(dp.predictedIncome)}). Reduce discretionary spending.`, icon: AlertCircle, bg: 'bg-rose-50 border-rose-100', ic: 'bg-rose-100 text-rose-600' },
+            { cond: dp.predictedSavings > 0 && dp.predictedIncome > 0 && dp.predictedSavings / dp.predictedIncome < 0.2, type: 'warn', title: 'Boost Savings', msg: `Predicted savings rate is ${(dp.predictedSavings / dp.predictedIncome * 100).toFixed(0)}%. Target 20% for financial health.`, icon: TrendingUp, bg: 'bg-amber-50 border-amber-100', ic: 'bg-amber-100 text-amber-600' },
+            { cond: dp.categoryForecasts.length > 0, type: 'tip', title: 'Top Expense Area', msg: `${dp.categoryForecasts[0]?.category || 'N/A'} is forecasted at ${fmt(dp.categoryForecasts[0]?.predicted || 0)}. Consider setting a budget limit.`, icon: Target, bg: 'bg-indigo-50 border-indigo-100', ic: 'bg-indigo-100 text-indigo-600' },
+            { cond: balance > dp.predictedExpense * 3, type: 'good', title: 'Strong Reserve', msg: `Your balance covers ${(balance / (dp.predictedExpense || 1)).toFixed(1)} months of predicted expenses. Excellent!`, icon: ShieldCheck, bg: 'bg-emerald-50 border-emerald-100', ic: 'bg-emerald-100 text-emerald-600' }
+          ].filter(r => r.cond).map((rec, i) => {
+            const RIcon = rec.icon;
+            return (
+              <div key={i} className={`p-5 rounded-2xl border ${rec.bg}`}>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${rec.ic}`}><RIcon size={18} /></div>
+                <p className="font-black text-slate-900 text-sm mb-1">{rec.title}</p>
+                <p className="text-[11px] font-medium text-slate-500 leading-relaxed">{rec.msg}</p>
+              </div>
+            );
+          })}
+          {!hasData && <div className="col-span-full p-8 text-center"><p className="text-[11px] font-black text-slate-300 uppercase tracking-widest">Make transactions to unlock forecast recommendations</p></div>}
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+
 // MAIN ANALYTICS COMPONENT
 const TABS = [
   { id: 'analysis', label: 'Analysis', icon: LucidePieChart },
   { id: 'performance', label: 'Performance', icon: Activity },
   { id: 'advisory', label: 'Advisory', icon: Brain },
-  { id: 'savings', label: 'AI Savings Lab', icon: Sparkles },
+  { id: 'savings', label: 'Savings Insights', icon: Sparkles },
+  { id: 'forecast', label: 'Forecast', icon: TrendingUp },
   { id: 'budgeting', label: 'Budgeting', icon: Target }
 ];
 
@@ -1303,6 +1546,10 @@ const Analytics = () => {
           )}
           {activeTab === 'savings' && (
             <SavingsLabTab key="savings" categories={categories} transactions={allTransactions}
+              balance={safeNum(balance)} budgets={budgets} isLoading={isLoading} />
+          )}
+          {activeTab === 'forecast' && (
+            <ForecastTab key="forecast" transactions={allTransactions}
               balance={safeNum(balance)} budgets={budgets} isLoading={isLoading} />
           )}
           {activeTab === 'budgeting' && (
