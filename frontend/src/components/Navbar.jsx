@@ -16,18 +16,17 @@ import {
 
 import NotificationCenter from './NotificationCenter';
 import ProfileQuickMenu from './ProfileQuickMenu';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useStore from '../store/useStore';
 import authService from '../services/authService';
-
 
 const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const { recentTransactions, beneficiaries, bills, user } = useStore();
+  const { recentTransactions, beneficiaries, bills, user, platformUsers } = useStore();
 
   const initials = user?.full_name
     ? user.full_name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
@@ -41,29 +40,97 @@ const Navbar = () => {
   const [recentSearches, setRecentSearches] = useState([]);
   const searchRef = useRef(null);
 
-  const searchableData = {
-    transactions: recentTransactions.map((tx) => ({
-      id: tx.id,
-      name: tx.description,
-      amount: Number(tx.amount || 0),
-      type: tx.type,
-      date: tx.created_at ? new Date(tx.created_at).toLocaleDateString() : ''
-    })),
-    contacts: beneficiaries.map((beneficiary) => ({
-      id: beneficiary.id,
-      name: beneficiary.beneficiary_name,
-      upi: beneficiary.upi_id || beneficiary.account_number || '',
-      initials: (beneficiary.beneficiary_name || 'U').substring(0, 2).toUpperCase()
-    })),
-    services: [
+  const [results, setResults] = useState({ transactions: [], contacts: [], global: [], services: [] });
+
+  // Client-Side O(1) Search Cache for Global Directory lookups (ADA O(1) Cache requirement)
+  const apiSearchCache = useRef(new Map());
+
+  // ADA O(1) Prefix-Suffix Hash Map for Instant Local Autocomplete Discovery
+  const localSearchHashMap = useMemo(() => {
+    const index = new Map();
+
+    const indexItem = (queryKey, item, category) => {
+       if (!queryKey) return;
+       const lowerKey = String(queryKey).toLowerCase().trim();
+       if (!lowerKey) return;
+
+       for (let len = 1; len <= lowerKey.length; len++) {
+          const prefix = lowerKey.slice(0, len);
+          if (!index.has(prefix)) {
+             index.set(prefix, { contacts: new Set(), global: new Set(), services: new Set(), transactions: new Set() });
+          }
+          index.get(prefix)[category].add(item);
+       }
+
+       const tokens = lowerKey.split(/[\s.@_-]+/);
+       for (const token of tokens) {
+          if (token.length < 2) continue;
+          for (let len = 1; len <= token.length; len++) {
+             const prefix = token.slice(0, len);
+             if (!index.has(prefix)) {
+                index.set(prefix, { contacts: new Set(), global: new Set(), services: new Set(), transactions: new Set() });
+             }
+             index.get(prefix)[category].add(item);
+          }
+       }
+    };
+
+    // 1. Index local beneficiaries
+    (beneficiaries || []).forEach(b => {
+       const formatted = {
+          id: b.id,
+          name: b.beneficiary_name,
+          upi: b.upi_id || b.account_number || '',
+          initials: (b.beneficiary_name || 'U').substring(0, 2).toUpperCase()
+       };
+       indexItem(b.beneficiary_name, formatted, 'contacts');
+       indexItem(b.upi_id, formatted, 'contacts');
+    });
+
+    // 2. Index platformUsers
+    (platformUsers || []).forEach(u => {
+       const formatted = {
+          id: u.id,
+          full_name: u.full_name,
+          upi_id: u.upi_id,
+          is_verified: u.is_verified || false
+       };
+       indexItem(u.full_name, formatted, 'global');
+       indexItem(u.upi_id, formatted, 'global');
+    });
+
+    // 3. Index Services
+    const services = [
       { name: 'Bill Payments', icon: Zap, href: '/app/payments' },
       { name: 'Cards Management', icon: CreditCard, href: '/app/cards' },
       { name: 'Analytics Hub', icon: BarChart3, href: '/app/analytics' },
-      ...bills.map((bill) => ({ name: bill.provider_name, icon: Zap, href: '/app/payments' }))
-    ]
-  };
+      ...(bills || []).map((bill) => ({ name: bill.provider_name, icon: Zap, href: '/app/payments' }))
+    ];
+    services.forEach(s => indexItem(s.name, s, 'services'));
 
-  const [results, setResults] = useState({ transactions: [], contacts: [], services: [] });
+    // 4. Index Transactions
+    (recentTransactions || []).forEach(tx => {
+       const formatted = {
+          id: tx.id,
+          name: tx.description || tx.note || tx.sender_upi || tx.receiver_upi || 'Finova Transfer',
+          amount: Number(tx.amount || 0),
+          type: tx.type || (tx.receiver_id === user?.id ? 'income' : 'expense'),
+          date: tx.created_at ? new Date(tx.created_at).toLocaleDateString() : ''
+       };
+       indexItem(formatted.name, formatted, 'transactions');
+    });
+
+    const finalIndex = new Map();
+    for (const [key, value] of index.entries()) {
+       finalIndex.set(key, {
+          contacts: Array.from(value.contacts),
+          global: Array.from(value.global),
+          services: Array.from(value.services),
+          transactions: Array.from(value.transactions)
+       });
+    }
+    return finalIndex;
+  }, [beneficiaries, platformUsers, bills, recentTransactions, user?.id]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -75,51 +142,81 @@ const Navbar = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Optimized search effect with O(1) local suggestion rendering and O(1) API response caching
   useEffect(() => {
-    if (searchQuery.length > 1) {
-      setIsSearching(true);
-      setShowResults(true);
-      
+    const cleanQuery = searchQuery.trim().toLowerCase();
+
+    if (cleanQuery.length < 1) {
+      setResults({ transactions: [], contacts: [], global: [], services: [] });
+      setShowResults(false);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    setShowResults(true);
+
+    // 1. Instant O(1) lookup in our local prefix hash map
+    const localMatches = localSearchHashMap.get(cleanQuery) || { contacts: [], global: [], services: [], transactions: [] };
+
+    // Update UI state instantly with local matching records
+    setResults({
+      contacts: localMatches.contacts,
+      global: localMatches.global,
+      services: localMatches.services,
+      transactions: localMatches.transactions
+    });
+
+    // 2. Debounced asynchronous global user query if length >= 2
+    if (cleanQuery.length >= 2) {
       const timer = setTimeout(async () => {
         try {
-          const query = searchQuery.toLowerCase();
+          let globalUsers = [];
+
+          if (apiSearchCache.current.has(cleanQuery)) {
+            globalUsers = apiSearchCache.current.get(cleanQuery);
+          } else {
+            globalUsers = await authService.searchUsers(cleanQuery);
+            apiSearchCache.current.set(cleanQuery, globalUsers);
+          }
+
+          const localUpis = new Set(localMatches.contacts.map(c => c.upi?.toLowerCase()));
           
-          // 1. Fetch real users from Global Directory
-          const globalUsers = await authService.searchUsers(query);
-          
-          // 2. Filter local searchable data
-          const filteredServices = searchableData.services.filter(s => 
-            s.name.toLowerCase().includes(query)
-          );
+          const formattedGlobal = globalUsers.map(gu => ({
+            id: gu.id,
+            full_name: gu.full_name,
+            upi_id: gu.upi_id,
+            is_verified: gu.is_verified || false
+          }));
 
-          const filteredTransactions = searchableData.transactions.filter(t => 
-            t.name?.toLowerCase().includes(query)
-          );
+          const mergedGlobal = [
+            ...localMatches.global,
+            ...formattedGlobal
+          ].filter(gu => !localUpis.has(gu.upi_id?.toLowerCase()));
 
-          // 3. Filter local contacts (beneficiaries)
-          const localContacts = searchableData.contacts.filter(c => 
-            c.name.toLowerCase().includes(query) || c.upi.toLowerCase().includes(query)
-          );
-
-          setResults({
-            transactions: filteredTransactions,
-            contacts: localContacts,
-            global: globalUsers.filter(gu => !localContacts.some(lc => lc.upi === gu.upi_id)),
-            services: filteredServices,
+          const seenUpis = new Set();
+          const dedupedGlobal = mergedGlobal.filter(gu => {
+            const upi = gu.upi_id?.toLowerCase();
+            if (!upi || seenUpis.has(upi)) return false;
+            seenUpis.add(upi);
+            return true;
           });
+
+          setResults(prev => ({
+            ...prev,
+            global: dedupedGlobal
+          }));
         } catch (err) {
           console.error("Discovery failed:", err);
         } finally {
           setIsSearching(false);
         }
-      }, 400);
-      
+      }, 250);
       return () => clearTimeout(timer);
     } else {
-      setResults({ transactions: [], contacts: [], global: [], services: [] });
-      if (searchQuery.length === 0) setShowResults(false);
+      setIsSearching(false);
     }
-  }, [searchQuery, beneficiaries, recentTransactions, bills]);
+  }, [searchQuery, localSearchHashMap]);
 
 
   const navigation = [
